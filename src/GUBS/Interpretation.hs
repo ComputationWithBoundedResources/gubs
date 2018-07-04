@@ -75,7 +75,7 @@ pInterpret i = T.interpret Var im where
               Just p -> T.substitute s (P.fromMaxPoly Var fromNatural p)
     where
       ts = pInterpret i `map` as
-      s (V i) | i < length ts = ts !! i
+      s (V j) | j < length ts = ts !! j
               | otherwise      = error "Interpretation.pInterpret: insufficient arguments"
 
 -- pretty printers

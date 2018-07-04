@@ -4,12 +4,9 @@ import Data.List (nub)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Data.Foldable (toList)
 
-import           GUBS.Utils
 import           GUBS.Algebra
-import qualified GUBS.Term as T
 import           GUBS.Constraint
 import qualified GUBS.Polynomial as P
-import qualified GUBS.Solver.Class as S
 
 data MaxPoly v c =
   Var v

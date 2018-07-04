@@ -11,7 +11,6 @@ import           Control.Monad (join, void)
 import           System.IO
 import           Data.Char (digitToInt)
 import           Data.List (nub,foldl')
-import           Data.String
 import           Data.Graph
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Parsec
@@ -32,9 +31,9 @@ lhss = map C.lhs
 rhss = map C.rhs
 
 sccsWith :: (v -> v -> Bool) -> [v] -> [[v]]
-sccsWith p cs = map flattenSCC sccs' where
-  sccs' = stronglyConnComp [ (c, i, succs c) | (i, c) <- ecs ]
-  ecs = zip [0 ..] cs
+sccsWith p cs = map flattenSCC ccs where
+  ccs = stronglyConnComp [ (c, i, succs c) | (i, c) <- ecs ]
+  ecs = zip [0::Int ..] cs
   succs from = [ j | (j, to) <- ecs, p from to ]
 
 -- MS: counterexample completeness
@@ -53,8 +52,8 @@ sccs' = sccsWith $ \from to ->
     then any (`elem` funs from) (funs to)
     else any (`elem` funs from) (T.funs (C.lhs to))
   where
-    isSli (l :>=: T.Fun f _) = isSli' l
-    isSli _                  = False
+    isSli (l :>=: T.Fun{}) = isSli' l
+    isSli _                = False
     isSli' (T.Plus t1 t2) = isSli' t1 && isSli' t2
     isSli' (T.Var _)      = True
     isSli' (T.Fun _ [])   = True
@@ -105,6 +104,7 @@ term = try constant <|> parens (try var <|> compound) where
   toTerm "*" ts  = return (prod ts)
   toTerm "+" ts  = return (sumA ts)
   toTerm "max" ts  = return (maximumA ts)
+  toTerm _ _ = fail "toTerm"
 
 constraint :: Parser (TermConstraint Symbol Variable)
 constraint = parens $ do
@@ -116,9 +116,9 @@ constraintSystem :: Parser (ConstraintSystem Symbol Variable)
 constraintSystem = many (lexeme constraint)
 
 csFromFile :: MonadIO m => FilePath -> m (Either ParseError (ConstraintSystem Symbol Variable))
-csFromFile file = runParser parse () sn <$> liftIO (readFile file) where
+csFromFile file = runParser parser () sn <$> liftIO (readFile file) where
   sn = "<file " ++ file ++ ">"
-  parse = many whiteSpace1 *> constraintSystem <* eof
+  parser = many whiteSpace1 *> constraintSystem <* eof
 
 csToFile :: (MonadIO m, PP.Pretty f, PP.Pretty v) => ConstraintSystem f v -> FilePath -> m ()
 csToFile cs f = liftIO $ do

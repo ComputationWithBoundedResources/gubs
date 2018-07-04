@@ -1,10 +1,6 @@
 module GUBS.Solve.SCC (sccDecompose, sccDecomposeWith, chainWith) where
 
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
-
-import           GUBS.Algebra
 import qualified GUBS.ConstraintSystem        as CS
-import           GUBS.Solve.Simplify          (partiallyInterpret)
 import           GUBS.Solve.Strategy
 
 

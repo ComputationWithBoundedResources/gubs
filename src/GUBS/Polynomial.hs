@@ -1,7 +1,7 @@
 module GUBS.Polynomial where
 
 import           Data.Maybe (fromMaybe)
-import           Data.List (foldl', foldl1')
+import           Data.List (foldl1')
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Data.Functor.Identity        (runIdentity)
 import           Data.MultiSet (MultiSet)
@@ -11,7 +11,6 @@ import qualified Data.Set as S
 
 import           GUBS.Algebra
 import           GUBS.Constraint (Constraint(..))
-import qualified GUBS.Term as T
 
 newtype Monomial v = Mono (MultiSet v)
   deriving (Eq, Ord, Show)
@@ -55,7 +54,7 @@ fromMonos :: (IsNat c, Ord v) => [(c,Monomial v)] -> Polynomial v c
 fromMonos ms = Poly (M.fromList [ (m,c) | (c,m) <- ms])
 
 toMonos :: Polynomial v c -> [(c,Monomial v)]
-toMonos (Poly m) = [ (c,m) | (m,c) <- M.toList m ]
+toMonos (Poly ms) = [ (c,m) | (m,c) <- M.toList ms ]
 
 toMonoMap :: Polynomial v c -> M.Map (Monomial v) c
 toMonoMap (Poly m) = m
@@ -127,7 +126,7 @@ substitute s p = sumA [ substMono m | (_,m) <- toMonos p]
 
 fromPolynomial :: SemiRing a => (v -> a) -> (c -> a) -> Polynomial v c -> a
 fromPolynomial var coeff p = sumA [ coeff c .* fromMonomial m | (c,m) <- toMonos p] where
-  fromMonomial m = prod [ var v .^ p | (v,p) <- toPowers m]
+  fromMonomial m = prod [ var v .^ vp | (v,vp) <- toPowers m]
  
 evalWithM :: (SemiRing c, Monad m) => (v -> m c) -> Polynomial v c -> m c
 evalWithM getValue = eval where

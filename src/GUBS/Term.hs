@@ -31,7 +31,8 @@ data Term f v = Var v
               | Max (Term f v) (Term f v)
               deriving (Eq, Ord, Show)
 
-
+pattern ZERO :: Term f v
+pattern ONE :: Term f v
 pattern ZERO = Const 0
 pattern ONE  = Const 1
 
@@ -84,7 +85,7 @@ instance Num (Term f v) where
 argsDL :: Term f v -> [Term f v] -> [Term f v]
 argsDL Var{} = id
 argsDL Const{} = id            
-argsDL (Fun f ts) = (++) ts . foldr ((.) . argsDL) id ts
+argsDL (Fun _ ts) = (++) ts . foldr ((.) . argsDL) id ts
 argsDL (Mult t1 t2) = (++) [t1,t2] . argsDL t1 . argsDL t2 
 argsDL (Plus t1 t2) = (++) [t1,t2] . argsDL t1 . argsDL t2 
 argsDL (Max t1 t2) = (++) [t1,t2] . argsDL t1 . argsDL t2        
@@ -95,7 +96,7 @@ args = flip argsDL []
 varsDL :: Term f v -> [v] -> [v]
 varsDL (Var v) = (v:)
 varsDL Const {} = id            
-varsDL (Fun f ts) = foldr ((.) . varsDL) id ts
+varsDL (Fun _ ts) = foldr ((.) . varsDL) id ts
 varsDL (Mult t1 t2) = varsDL t1 . varsDL t2 
 varsDL (Plus t1 t2) = varsDL t1 . varsDL t2 
 varsDL (Max t1 t2) = varsDL t1 . varsDL t2        

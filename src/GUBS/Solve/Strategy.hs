@@ -24,7 +24,7 @@ module GUBS.Solve.Strategy (
   ) where
 
 
-import           Data.Maybe (isNothing,fromMaybe)
+import           Data.Maybe (isNothing)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Control.Monad.State
 import           Control.Monad.Trace
@@ -37,7 +37,6 @@ import           GUBS.Algebra
 import           GUBS.Interpretation hiding (get)
 import           GUBS.Constraint
 import           GUBS.ConstraintSystem
-import qualified GUBS.Polynomial as P
 import qualified GUBS.Interpretation as I
 
 type ExecutionLog = Forest String
@@ -49,7 +48,7 @@ newtype ProcT f c m a = ProcT { runProcT_ :: StateT (Interpretation f c) (TraceT
 instance MonadTrans (ProcT f c) where lift = ProcT . lift . lift
 
 run :: Monad m => Interpretation f c -> ProcT f c m a -> m (a, Interpretation f c, ExecutionLog)
-run i = liftM (\((a,i),l) -> (a,i,l)) . runTraceT .  flip runStateT i . runProcT_
+run i = liftM (\((a,j),l) -> (a,j,l)) . runTraceT .  flip runStateT i . runProcT_
 
 liftTrace :: Monad m => TraceT String m a -> ProcT f c m a
 liftTrace = ProcT . lift 

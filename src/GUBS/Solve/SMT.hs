@@ -18,13 +18,11 @@ module GUBS.Solve.SMT
   ) where
 
 import Data.Maybe (fromJust)
-import Data.List (subsequences,nub, (\\))
-import qualified Data.Foldable as Fold
-import Control.Arrow (second)
+import Data.List (subsequences)
 import Control.Applicative ((<|>))
-import Control.Monad (forM, foldM, forM_, liftM, when, unless, filterM, (>=>), replicateM)
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.State (StateT, runStateT, execStateT, evalStateT, get, put, modify)
+import Control.Monad.State (StateT, execStateT, evalStateT, get, put, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trace
 import qualified Data.Map as M
@@ -37,7 +35,7 @@ import qualified GUBS.Expression as E
 import qualified GUBS.Interpretation as I
 import qualified GUBS.MaxPolynomial as MP
 import qualified GUBS.Polynomial as P
-import           GUBS.Constraint (Constraint (..), ConditionalConstraint (..), lhs, rhs)
+import           GUBS.Constraint (Constraint (..))
 import           GUBS.ConstraintSystem (ConstraintSystem)
 import           GUBS.Solve.Strategy (Processor, Interpretation, Result (..), modifyInterpretation, getInterpretation, liftTrace)
 import           GUBS.Solver
@@ -319,6 +317,7 @@ solveM cs = do
   ifM (liftSMT checkSat) (Just <$> minimizeM cs mo) (return Nothing)
   where
     dio (Geq l r) = smtBigAnd [ p `smtGeq` q | (p :>=: q) <- P.absolutePositive (l `P.minus` r) ]
+    dio (Eq{})    = error "SMT.solveM: unexpected Eq."
 
 
 smt :: (Show f, PP.Pretty f, PP.Pretty v, Ord f, Ord v, MonadIO m) => Solver -> SMTOpts f -> Processor f Integer v m

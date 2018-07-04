@@ -23,14 +23,10 @@ module GUBS.Solver.Class (
   ) where
 
 import Control.Monad ((>=>))
-import Control.Monad.Trans (MonadIO, MonadTrans)
-import Control.Monad.Trace
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import GUBS.Algebra hiding (neg)
 import qualified GUBS.Expression as E
 import qualified GUBS.Solver.Formula as F
-import GUBS.Constraint (Constraint (..))
 import qualified GUBS.Polynomial as Poly
 
 type SMTExpression s = E.Expression (NLiteral s)
@@ -65,6 +61,7 @@ assert = letElim >=> assertFormula where
     b <- freshBool
     assertFormula (F.Iff (F.literal b) e')
     letElim (f b)
+  letElim (F.Iff{}) = error "Class.assert: unexpected Iff."
 
 -- isZero :: SMTSolver s => Expression (Literal s) -> Formula (Exp s)
 -- isZero e = smtBigAnd [ smtBool (c == 0)

@@ -7,25 +7,20 @@ import           Text.Read hiding (Symbol,lift)
 
 import           Control.Applicative ((<|>))
 import qualified Control.Monad.State as St
-import           Control.Monad.Trans (MonadIO, liftIO, MonadTrans(..))
-import           Control.Monad.Trace
+import           Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.ByteString.Builder as BS
-import           Data.ByteString.Lazy.Char8 (unpack)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe, isJust)
 import           Data.Monoid
 import           Data.Set (Set)
 import qualified Data.Set as Set
-import           System.IO (Handle, hClose, hFlush, hSetBinaryMode, stderr, hPutStrLn)
+import           System.IO (hClose, hFlush, hSetBinaryMode, stderr, hPutStrLn)
 import           System.IO.Temp (withSystemTempFile)
 import           System.Exit
 import           System.Process
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import           GUBS.Utils
-import           GUBS.Algebra
-import qualified GUBS.Expression as E
 import qualified GUBS.Polynomial as Poly
 import           GUBS.Solver.Class
 
@@ -105,7 +100,7 @@ e1 <+> e2 = e1 <> charBS ' ' <> e2
 e1 </> e2 = e1 <> charBS '\n' <> e2
 
 sepWith :: (BS.Builder -> BS.Builder -> BS.Builder) -> [BS.Builder] -> BS.Builder
-sepWith sep [] = mempty
+sepWith _  [] = mempty
 sepWith _ [e]  = e
 sepWith sep (e:es) = e `sep` sepWith sep es
 
@@ -135,6 +130,8 @@ toScript vs cs =
     formToBS (Atom (Geq e1 e2))          = app ">=" [ expressionToBS e1, expressionToBS e2 ]
     formToBS (And f1 f2)                 = app "and" [ formToBS f1, formToBS f2 ]
     formToBS (Or f1 f2)                  = app "or" [ formToBS f1, formToBS f2 ]
+    formToBS (Iff{})                     = error "MiniSMT.toScript: unexpected Iff."
+    formToBS (LetB{})                    = error "MiniSMT.toScript: unexpected LetB."
     -- TODO lets?
 
     expressionToBS e = polyToBS e where

@@ -8,9 +8,7 @@ module GUBS.Expression
        , evalWith
        ) where
 
-import           GUBS.Utils
 import           GUBS.Polynomial
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 type Expression v = Polynomial v Integer
 

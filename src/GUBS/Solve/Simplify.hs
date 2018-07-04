@@ -4,7 +4,6 @@ import           Control.Monad
 import           Data.Function (on)
 import           Data.Either (partitionEithers)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import           Data.Function (on)
 import qualified Data.Set as Set
 import           Data.List (groupBy,sortBy,nub,(\\))
 
@@ -81,7 +80,7 @@ propagateUp = propagateUp' ==> partiallyInterpret where
     toProgress cs <$> concat <$> mapM (propagate i) (groupWith dsym cs)
       where
         dsym = T.definedSymbol . C.lhs
-        toProgress cs cs' = if length cs > length cs' then Progress cs' else NoProgress
+        toProgress cs1 cs2 = if length cs1 > length cs2 then Progress cs2 else NoProgress
         propagate i [Fun f ts :>=: b]
           | Just s <- renaming ts I.variables
           , Just p <- I.interpret i b
@@ -102,7 +101,7 @@ propagateDown = propagateDown' ==> partiallyInterpret where
     i <- getInterpretation
     toProgress cs <$> concat <$> mapM (propagate i) (groupWith dsym cs)
       where
-        toProgress cs cs' = if length cs > length cs' then Progress cs' else NoProgress
+        toProgress cs1 cs2 = if length cs1 > length cs2 then Progress cs2 else NoProgress
         dsym = T.definedSymbol . C.rhs
         propagate i [ h :>=: Fun f ts ]
           | Just s <- renaming ts I.variables
@@ -128,7 +127,7 @@ eliminate = partiallyInterpret <== \ cs ->  do
     lfuns = Set.fromList . foldl (flip T.funsDL) [] . CS.lhss
     eliminate' [] _ = return NoProgress
     eliminate' fs cs = do
-      forM fs $ \ (f,ar) -> do
+      forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Eliminated:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
         modifyInterpretation (\ i -> I.insert i f ar (fromNatural 0))
       return (Progress cs)
@@ -173,7 +172,7 @@ fixSli = partiallyInterpret <== \ cs -> do
 
     fixate [] _  = return NoProgress
     fixate fs cs = do
-      forM fs $ \ (f,ar) -> do
+      forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Fixate:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
         let sli = sumA (MP.variable <$> take ar I.variables) .+ (fromNatural 1)
         modifyInterpretation (\i' -> I.insert i' f ar sli)

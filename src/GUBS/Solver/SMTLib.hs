@@ -48,6 +48,8 @@ toSMTFormula (Atom (Geq l r))                = toSMTExp l SMT..>=. toSMTExp r
 toSMTFormula (Atom (Eq l r))                 = toSMTExp l SMT..==. toSMTExp r
 toSMTFormula (And f1 f2)                     = toSMTFormula f1 SMT..&. toSMTFormula f2
 toSMTFormula (Or f1 f2)                      = toSMTFormula f1 SMT..|. toSMTFormula f2    
+toSMTFormula (Iff{})                         = error "SMTLib.toSMTFormula: unexpected Iff."
+toSMTFormula (LetB{})                        = error "SMTLib.toSMTFormula: unexpected LetB."
 
 
 liftSMT :: SMT.Backend b => SMT.SMT b a -> SolverM (SMTLibSolver b) a
