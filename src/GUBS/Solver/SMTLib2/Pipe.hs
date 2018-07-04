@@ -1,67 +1,71 @@
--- defines in/out pipe for solvers compliant with smtlib2 standard
--- MS: seems to work but
---  (i)  no proper error handling
---  (ii) there should be a more idiomatic way handling input/output using eg a stream library
+-- This module provides an interface over Stdin/Stdout for solvers compliant with the `SMT-LIBv2` standard.
+--
+-- tested with
+--   * z3 4.4.2
+--   * yices 2.5.2 (do not use --interactive flag) but --incremental is not supported for QF_NIA
+--
+-- MS: This module should replace Gubs.Solver.SMTLib and the remove the dependency to the smtlib2 package.
 module GUBS.Solver.SMTLib2.Pipe (
   runSMTLib2
   ) where
 
 
-import           Text.Read                    hiding (Symbol, lift)
 import           Control.Exception            (evaluate)
-import           Control.Monad                (unless)
+import           Control.Monad                (unless, void)
 import qualified Control.Monad.State          as St
 import           Control.Monad.Trans          (MonadIO, liftIO)
 import qualified Data.ByteString.Builder      as BS
 import           Data.Monoid
-import           System.IO                    (BufferMode (..), Handle, hFlush, hGetContents, hGetLine,
-                                               hPutStrLn, hSetBinaryMode, hSetBuffering, hWaitForInput, stderr)
+import           System.IO
+import           System.Process.Typed
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import           Text.Read                    hiding (Symbol, lift)
 
 import qualified GUBS.Polynomial              as Poly
 import           GUBS.Solver.Class
 
-import           System.Process.Typed
 
 newtype Symbol  = Symbol Int deriving (Eq, Ord)
 
 data SolverState = SolverState
   { freshId   :: Int
   , inHandle  :: Handle
-  , outHandle :: Handle
-  , errHandle :: Handle }
+  , outHandle :: Handle }
 
 runSMTLib2 :: String -> [String] -> SolverM SMTLib2 a -> IO a
 runSMTLib2 cmd args m' = go (send qfniaBS *> m' <* send exitBS) where
   go (SMTLib2 m) =
     let cfg = setStdin createPipe $ setStdout createPipe $ setStderr createPipe $ proc cmd args in
-    withProcess_ cfg  $ \p -> do
+    withProcess cfg  $ \p -> do
       let inh = getStdin  p
       hSetBinaryMode inh True
       hSetBuffering inh (BlockBuffering Nothing)
-      a <- St.evalStateT
+      r <- St.evalStateT
         m
         SolverState
           { freshId   = 0
           , inHandle  = inh
-          , outHandle = getStdout p
-          , errHandle = getStderr p }
-      err <- hGetContents $ getStderr p
-      _ <- evaluate err
-      unless (null err) $ System.IO.hPutStrLn stderr err
-      return a
+          , outHandle = getStdout p }
+      err  <- hGetContents $ getStderr p
+      void $ evaluate err
+      unless (null err) $ hPutStrLn stderr err
+      return r
 
 send :: BS.Builder -> SolverM SMTLib2 ()
 send msg = St.gets inHandle >>= \inh -> liftIO $ do
-  BS.hPutBuilder inh (msg <> charBS '\n')
+  BS.hPutBuilder inh msg
+  BS.hPutBuilder inh (charBS '\n')
   hFlush inh
 
-receive :: (String -> a) ->  SolverM SMTLib2 a
-receive f = St.gets outHandle >>= \outh -> liftIO $ do
-  _ <- hWaitForInput outh (-1)
+receive :: SolverM SMTLib2 String
+receive = St.gets outHandle >>= \outh -> liftIO $ do
+  -- _ <- hWaitForInput outh (-1)
   out <- hGetLine outh
-  _ <- evaluate out
-  return $ f out
+  void $ evaluate out
+  return out
+
+ask :: BS.Builder -> SolverM SMTLib2 String
+ask msg = send msg *> receive
 
 
 -- smt script formatter
@@ -188,11 +192,10 @@ instance SMTSolver SMTLib2 where
   pop             = send $ app "pop" [natBS 1]
   assertFormula c = send $ assertBS c
 
-  -- MS: assumes that the result is written in one line
-  getValue l = send (getValueBS l) *> receive parseValue
+  getValue l = parseValue <$> ask (getValueBS l)
     where parseValue = read . takeWhile (/= ')') . tail . dropWhile (/= ' ')
 
-  checkSat = send checkSatBS *> receive (== "sat")
+  checkSat = (== "sat") <$> ask checkSatBS
 
 instance Show (NLiteral SMTLib2) where
   show (NLit (Symbol i)) = 'n': show i

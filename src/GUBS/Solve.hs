@@ -29,6 +29,7 @@ data Answer f v c = Open (ConstraintSystem f v) (Interpretation f c) | Sat (Inte
 defaultProcessor :: (Ord v, Ord f, PP.Pretty f, PP.Pretty v, Show f) => Solver -> Processor f Integer v IO
 defaultProcessor smtSolver =
   withLog (try simplify) ==> try (exhaustive (logAs "SCC" (sccDecompose simple)))
+  -- withLog (try simplify) ==> chainWith sccs simple
   where
     withLog p cs = 
       logOpenConstraints cs *> p cs <* logInterpretation cs <* logConstraints cs

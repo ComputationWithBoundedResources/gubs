@@ -1,3 +1,5 @@
+-- This module provides an interface for the z3 solver.
+-- It uses the `z3` package and depends on `z3-lib`.
 module GUBS.Solver.ZThree (zthree) where
 
 
@@ -8,6 +10,7 @@ import           GUBS.Solver.Class
 import qualified GUBS.Solver.Formula          as F
 
 import           Control.Monad.State.Strict
+import           Data.Proxy
 import           Data.Maybe                   (fromJust)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
