@@ -119,11 +119,6 @@ factorise (fmap (toMonos . norm) -> ps)
     leq1 [_] = True
     leq1 _   = False
 
-substitute :: (Ord v', IsNat c, SemiRing c) => (v -> Polynomial v' c) -> Polynomial v c -> Polynomial v' c 
-substitute s p = sumA [ substMono m | (_,m) <- toMonos p]
-    where
-      substMono m = prod [ sumA (replicate n (s v)) | (v,n) <- toPowers m]
-
 fromPolynomial :: SemiRing a => (v -> a) -> (c -> a) -> Polynomial v c -> a
 fromPolynomial var coeff p = sumA [ coeff c .* fromMonomial m | (c,m) <- toMonos p] where
   fromMonomial m = prod [ var v .^ vp | (v,vp) <- toPowers m]
