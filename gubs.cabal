@@ -1,10 +1,10 @@
 name:                gubs
-version:             0.3.1.0
+synopsis:            arithmetic constraint solver
+version:             0.4.0.0
 license:             MIT
 license-file:        LICENSE
-author:              Martin Avanzini
-maintainer:          martin.avanzini@uibk.ac.at
-category:            Logic
+author:              Martin Avanzini and Michael Schaper
+maintainer:          martin.avanzini@inria.fr and michael.schaper@uibk.ac.at
 build-type:          Simple
 cabal-version:       >=1.10
 
@@ -13,67 +13,65 @@ Flag Z3
   Default: False
 
 library
-  exposed-modules: GUBS.Algebra
-                   GUBS.Term
-                   GUBS.Constraint
-                   GUBS.ConstraintSystem
-                   GUBS.Polynomial
-                   GUBS.MaxPolynomial
-                   GUBS.Expression
-                   GUBS.Interpretation
-                   GUBS.Solve
-                   GUBS.Solve.Strategy
-                   GUBS.Solve.SMT
-                   GUBS.Solve.SCC
-                   GUBS.Solve.Simplify
-                   GUBS.Solver
-                   GUBS.Solver.Class
-                   GUBS.Solver.Formula
-                   GUBS.Solver.SMTLib
-                   GUBS.Solver.SMTLib2.Pipe
-                   GUBS.Solver.MiniSMT
-                   GUBS.Utils
-                   GUBS
-  build-depends:       base,
-                       containers,
-                       smtlib2,
-                       smtlib2-pipe,
-                       smtlib2-debug,
-                       mtl,
-                       monad-trace,
-                       transformers,
-                       bytestring,
-                       process,
-                       temporary,
-                       ansi-wl-pprint,
-                       multiset,
-                       time,
-                       parsec,
-                       stm,
-                       typed-process
-                       -- streaming-commons
+  exposed-modules:
+    GUBS.Algebra
+    GUBS.Interpretation
+    GUBS.MaxPolynomial
+    GUBS.MaxTerm
+    GUBS.Natural.Constraint
+    GUBS.Natural.ConstraintSystem
+    GUBS.Natural.Interpretation
+    GUBS.Natural.Solve
+    GUBS.Natural.Solve.Encoding
+    GUBS.Natural.Solve.SCC
+    GUBS.Natural.Solve.Simplify
+    GUBS.Natural.Strategy
+    GUBS.Polynomial
+    GUBS.Solver
+    GUBS.Solver.Class
+    GUBS.Solver.Formula
+    GUBS.Solver.MiniSMT
+    GUBS.Solver.SMTLib2
+    GUBS.Strategy
+    GUBS.Utils
+  build-depends:
+    base,
+    containers,
+    mtl,
+    monad-trace,
+    bytestring,
+    process,
+    temporary,
+    ansi-wl-pprint,
+    time,
+    parsec,
+    multiset,
+    typed-process
+
   hs-source-dirs:      src
   default-language:    Haskell2010
   other-extensions:
-  default-extensions:  StandaloneDeriving,
-                       CPP,
-                       DeriveFunctor,
-                       DeriveFoldable,
-                       DeriveTraversable,
-                       GeneralizedNewtypeDeriving,
-                       ConstraintKinds,
-                       FlexibleContexts,
-                       FlexibleInstances,
-                       MultiParamTypeClasses,
-                       RecordWildCards,
-                       ViewPatterns,
-                       PatternSynonyms,
-                       PatternGuards,
-                       TypeFamilies,
-                       TupleSections,
-                       GADTs
+  default-extensions:
+    ConstraintKinds
+    CPP
+    DeriveFoldable
+    DeriveFunctor
+    DeriveTraversable
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    GeneralizedNewtypeDeriving
+    MultiParamTypeClasses
+    PatternGuards
+    PatternSynonyms
+    RecordWildCards
+    StandaloneDeriving
+    TupleSections
+    TypeFamilies
+    ViewPatterns
 
-  ghc-options:    -threaded -Wall -fno-warn-orphans
+  ghc-options:
+    -Wall -fno-warn-orphans
   if flag(Z3)
     exposed-modules: GUBS.Solver.ZThree
     build-depends:   z3
@@ -81,19 +79,15 @@ library
     cpp-options:     -DWithZ3
 
 executable gubs
- hs-source-dirs: gubs
- ghc-options:    -threaded -Wall -fno-warn-orphans -O2
- default-language: Haskell2010
- main-is: Main.hs
- build-depends: gubs,
-                base,
-                mtl,
-                containers,
-                ansi-wl-pprint,
-                cmdargs
- default-extensions: TypeOperators,
-                     FlexibleContexts,
-                     FlexibleInstances,
-                     RecordWildCards,
-                     DeriveDataTypeable,
-                     StandaloneDeriving
+  hs-source-dirs: gubs
+  ghc-options:    -threaded -Wall -fno-warn-orphans -O2
+  default-language: Haskell2010
+  main-is: Main.hs
+  build-depends:
+    gubs,
+    base,
+    mtl,
+    containers,
+    ansi-wl-pprint,
+    cmdargs
+

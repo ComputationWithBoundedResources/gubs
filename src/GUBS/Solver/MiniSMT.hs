@@ -2,6 +2,7 @@ module GUBS.Solver.MiniSMT (
   miniSMT
   ) where
 
+
 import           Prelude hiding (lookup)
 import           Text.Read hiding (Symbol,lift)
 
@@ -24,7 +25,8 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified GUBS.Polynomial as Poly
 import           GUBS.Solver.Class
 
-data MiniSMT = MiniSMT
+
+data MiniSMT
 
 newtype Symbol = Symbol Int deriving (Eq, Ord)
 data SymbolType = BoolType | NatType deriving (Eq,Ord)
@@ -145,8 +147,8 @@ toScript vs cs =
       mul 1 as     = app "*" as
       mul c as     = app "*" (integerBS c : as)
       
-      polyToBS (Poly.toMonos -> ms) = add [ monoToBS c m | (c,m) <- ms ]
-      monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate e (stringBS (show v)) | (NLit v,e) <- ps ])
+      polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms ]
+      monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate n (stringBS (show v)) | (NLit v,n) <- ps ])
     
 
 -- result parser
@@ -207,7 +209,7 @@ instance SMTSolver MiniSMT where
   checkSat = do
     st <- St.get
     ma <- S (runMiniSMT (freeVars st) (constraints st))
-    St.modify (\ st -> st {curFrame = (curFrame st) {fAssign = ma} })
+    St.modify (\ st' -> st' {curFrame = (curFrame st') {fAssign = ma} })
     return (isJust ma)
     
   

@@ -48,9 +48,11 @@ atoms (LetB f1 f2) = atoms f1 ++ atoms (f2 undefined)
 negLiteral :: l -> Formula l e
 negLiteral = Lit . NegBoolLit
 
-gtA,eqA,geqA :: (IsNat e, Additive e) => e -> e -> Formula l e
-gtA e1 e2 = Atom (Geq e1 (e2 .+ fromNatural 1))
-eqA e1 e2 = Atom (Eq e1 e2)
+gtA :: SemiRing e => e -> e -> Formula l e
+gtA e1 e2  = Atom (Geq e1 (e2 .+ one))
+
+eqA,geqA :: e -> e -> Formula l e
+eqA e1 e2  = Atom (Eq e1 e2)
 geqA e1 e2 = Atom (Geq e1 e2)
 
 
@@ -105,5 +107,4 @@ letB' :: [Formula l e] -> ([l] -> Formula l e) -> Formula l e
 letB' = walk [] where
   walk ls [] f = f (reverse ls)
   walk ls (e:es) f = LetB e (\ l -> walk (l:ls) es f)
-
 

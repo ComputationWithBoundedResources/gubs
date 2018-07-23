@@ -1,21 +1,25 @@
-module GUBS.Solve.Simplify where
+module GUBS.Natural.Solve.Simplify where
+
 
 import           Control.Monad
-import           Data.Function (on)
-import           Data.Either (partitionEithers)
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import qualified Data.Set as Set
-import           Data.List (groupBy,sortBy,nub,(\\))
+import           Control.Monad.Trace
+import           Data.Either                   (partitionEithers)
+import           Data.Function                 (on)
+import           Data.List                     (groupBy, nub, sortBy, (\\))
+import qualified Data.Set                      as Set
+import qualified Text.PrettyPrint.ANSI.Leijen  as PP
 
 import           GUBS.Algebra
-import qualified GUBS.Interpretation as I
-import           GUBS.Term (Term (..))
-import qualified GUBS.Term as T
-import           GUBS.Constraint (Constraint (..))
-import qualified GUBS.Constraint as C
-import qualified GUBS.ConstraintSystem as CS
-import qualified GUBS.MaxPolynomial as MP
-import           GUBS.Solve.Strategy
+import qualified GUBS.MaxPolynomial            as MP
+import           GUBS.MaxTerm                  (Term (..))
+import qualified GUBS.MaxTerm                  as T
+
+import           GUBS.Natural.Constraint       (Constraint (..))
+import qualified GUBS.Natural.Constraint       as C
+import qualified GUBS.Natural.ConstraintSystem as CS
+import qualified GUBS.Natural.Interpretation   as I
+import           GUBS.Natural.Strategy
+
 
 renaming :: Eq v => [Term f v] -> [I.Var] -> Maybe [(v,MP.MaxPoly I.Var c)]
 renaming [] _ = Just []
@@ -28,12 +32,13 @@ renaming _ _ = Nothing
 funsOfArgs :: [Term f v] -> [(f,Int)]
 funsOfArgs = foldr T.funsDL [] . foldr T.argsDL []
 
+logBinding :: (PP.Pretty a3, PP.Pretty a2, PP.Pretty a1, MonadTrace String m) => a1 -> [(a4, a2)] -> a3 -> m ()
 logBinding f s p =
     logMsg (PP.text "Propagated:"
             PP.<+> PP.pretty f PP.<> PP.parens (PP.cat (PP.punctuate PP.comma [ PP.pretty v | (_,v) <- s]))
             PP.<+> PP.text "↦" PP.<+> PP.pretty p)
 
-groupWith :: (Eq b, Ord b) => (a -> b) -> [a] -> [[a]]
+groupWith :: Ord b => (a -> b) -> [a] -> [[a]]
 groupWith f = groupBy (\eq1 eq2 -> f eq1 == f eq2) . sortBy (compare `on` f)
 
 -- propagateEq :: (Eq c, Num c, PP.Pretty c, Eq f, Ord f, PP.Pretty f, PP.Pretty v, Ord v, Monad m) => Processor f c v m
@@ -61,7 +66,7 @@ substitute s = MP.substitute s' where
     Just p  -> p
 
 
-partiallyInterpret :: (Ord f, Integral c, Ord v, Monad m) => Processor f c v m
+partiallyInterpret :: (Ord f, Integral c, Monad m) => Processor f c v m
 partiallyInterpret cs = do
   i <- getInterpretation
   return (Progress [ I.pInterpret i l :>=: I.pInterpret i r | (l :>=: r) <- cs])
@@ -73,7 +78,7 @@ partiallyInterpret cs = do
 --
 -- Given a paritally interpreted constraint @f(x) = f(x) >= x+1 = g(x)@ we set @f(x) = g(x) = x+1@ if @f@ only occurs
 -- once on the lhs of the constraint system.
-propagateUp :: (Eq c, IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Eq f, Ord f, PP.Pretty f, PP.Pretty v, Ord v, Monad m) => Processor f c v m
+propagateUp :: (IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Ord f, PP.Pretty f, Ord v, Monad m) => Processor f c v m
 propagateUp = propagateUp' ==> partiallyInterpret where
   propagateUp' cs = do
     i <- getInterpretation
@@ -95,7 +100,7 @@ propagateUp = propagateUp' ==> partiallyInterpret where
         propagate _ g = return g
 
 -- | Like `propagateUp` but propagates interpretation from left to right.
-propagateDown :: (Eq c, IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Eq f, Ord f, PP.Pretty f, PP.Pretty v, Ord v, Monad m) => Processor f c v m
+propagateDown :: (IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Ord f, PP.Pretty f, Ord v, Monad m) => Processor f c v m
 propagateDown = propagateDown' ==> partiallyInterpret where
   propagateDown' cs = do
     i <- getInterpretation
@@ -117,7 +122,7 @@ propagateDown = propagateDown' ==> partiallyInterpret where
         propagate _ g = return g
 
 -- | Fixes the interpretation of symbols occuring only on the rhs of constraints to zero.
-eliminate :: (Eq c, IsNat c, Integral c, Num c, PP.Pretty f, PP.Pretty v, Eq v, Ord v, Monad m, Ord f) => Processor f c v m
+eliminate :: (IsNat c, Integral c, PP.Pretty f, Monad m, Ord f) => Processor f c v m
 eliminate = partiallyInterpret <== \ cs ->  do
   i <- getInterpretation
   let fs = rfuns cs Set.\\ (Set.fromList (I.domain i) `Set.union` lfuns cs)
@@ -129,7 +134,7 @@ eliminate = partiallyInterpret <== \ cs ->  do
     eliminate' fs cs = do
       forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Eliminated:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
-        modifyInterpretation (\ i -> I.insert i f ar (fromNatural 0))
+        modifyInterpretation (\ i -> I.insert i f ar (fromNatural (0 :: Integer)))
       return (Progress cs)
 
 -- | Simplify constraints setting variables not occuring on the rhs to zero.
@@ -144,7 +149,7 @@ instantiate cs = toProgress <$> partitionEithers <$> mapM inst cs where
     case nub [ v | v <- T.vars s, v `notElem` T.vars t ] of
       [] -> return (Left c)
       vs -> do
-        let subst v | v `elem` vs = fromNatural 0
+        let subst v | v `elem` vs = fromNatural (0 :: Integer)
                     | otherwise = Var v
         let c' = T.substitute subst s :>=: t
         logMsg (PP.text "Substituted:" PP.<+> PP.pretty c PP.<+> PP.text "↦" PP.<+> PP.pretty c')
@@ -156,7 +161,7 @@ instantiate cs = toProgress <$> partitionEithers <$> mapM inst cs where
 -- interpretation for a constructor @c(x1,...,xn)@ to @x1+...+xn+1@.
 --
 -- This is clearly incomplete. And as experiments show only rarely useful.
-fixSli :: (Ord f, PP.Pretty f, IsNat c, Integral c, Additive c, Eq c, Ord v, Monad m) => Processor f c v m
+fixSli :: (Ord f, PP.Pretty f, IsNat c, Integral c, Additive c, Monad m) => Processor f c v m
 fixSli = partiallyInterpret <== \ cs -> do
   i <- getInterpretation
   let fs = filter (isConstructor cs) $ CS.funsCS cs \\ (I.domain i)
@@ -174,7 +179,7 @@ fixSli = partiallyInterpret <== \ cs -> do
     fixate fs cs = do
       forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Fixate:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
-        let sli = sumA (MP.variable <$> take ar I.variables) .+ (fromNatural 1)
+        let sli = sumA (MP.variable <$> take ar I.variables) .+ (fromNatural (1 :: Integer))
         modifyInterpretation (\i' -> I.insert i' f ar sli)
       return (Progress cs)
 

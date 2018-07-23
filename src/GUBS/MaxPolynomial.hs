@@ -1,15 +1,15 @@
 module GUBS.MaxPolynomial where
 
-import Data.List (nub)
+
+import           Data.Foldable                (toList)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import Data.Foldable (toList)
 
 import           GUBS.Algebra
-import           GUBS.Constraint
-import qualified GUBS.Polynomial as P
+import qualified GUBS.Polynomial              as P
 
-data MaxPoly v c =
-  Var v
+
+data MaxPoly v c
+  =  Var v
   | Const c
   | Plus (MaxPoly v c) (MaxPoly v c)
   | Mult (MaxPoly v c) (MaxPoly v c)
@@ -38,7 +38,7 @@ coefficients = toList
 
 instance IsNat c => IsNat (MaxPoly v c) where
   fromNatural_ = Const . fromNatural
-  
+
 instance (Eq c, Additive c) => Additive (MaxPoly v c) where
   zero = Const zero
   Const i .+ t2      | zero == i = t2
@@ -50,7 +50,7 @@ instance (Eq c, Additive c) => Max (MaxPoly v c) where
   Const i `maxA` t2      | zero == i = t2
   t1      `maxA` Const j | zero == j = t1
   t1      `maxA` t2                  = Max t1 t2
-  
+
 instance (Eq c, Additive c, Multiplicative c) => Multiplicative (MaxPoly v c) where
   one = Const one
   Const i .* t2      | zero == i = zero
@@ -59,6 +59,7 @@ instance (Eq c, Additive c, Multiplicative c) => Multiplicative (MaxPoly v c) wh
                      | one == j  = t1
   Const i .* Const j             = Const (i .* j)
   t1 .* t2                       = Mult t1 t2
+
 
 -- operations
 
@@ -75,10 +76,11 @@ substitute _ (Const c)  = Const c
 substitute s (Plus p q) = substitute s p .+ substitute s q
 substitute s (Mult p q) = substitute s p .* substitute s q
 substitute s (Max p q)  = substitute s p `maxA` substitute s q
-  
--- * max elimination
 
-splitMax :: (Ord v, IsNat c, SemiRing c) =>  MaxPoly v c -> [P.Polynomial v c]
+
+-- max elimination
+
+splitMax :: (Ord v, SemiRing c) =>  MaxPoly v c -> [P.Polynomial v c]
 splitMax (Var v)    = [P.variable v]
 splitMax (Const c)  = [P.coefficient c]
 splitMax (Plus p q) = (.+) <$> splitMax p <*> splitMax q
@@ -97,19 +99,19 @@ splitMax (Max p q)  = splitMax p ++ splitMax q
 --           q' = toPoly q
 --           cp = ((p' :>=: q')          : ps,ctx p)
 --           cq = ((q' :>=: (p' .+ one)) : ps,ctx q)
-                      
+
 --   toPoly (Var v)    = P.variable v
 --   toPoly (Const c)  = P.coefficient c
 --   toPoly (Plus p q) = toPoly p .+ toPoly q
 --   toPoly (Mult p q) = toPoly p .* toPoly q
 --   toPoly (Max {})     = error "maxElim: polynomial still contains max"
-  
+
 --   splitIEQ (p1 :>=: p2) =
 --     case (splitMaxPoly p1, splitMaxPoly p2) of
 --       (Right (p,q,ctx), _              ) -> Just (p,q, \pi -> ctx pi :>=: p2)
---       (_              , Right (p,q,ctx)) -> Just (p,q, \pi -> p1 :>=: ctx pi)    
+--       (_              , Right (p,q,ctx)) -> Just (p,q, \pi -> p1 :>=: ctx pi)
 --       (_              , _              ) -> Nothing
---   splitBinOp c p1 p2 = 
+--   splitBinOp c p1 p2 =
 --     case (splitMaxPoly p1, splitMaxPoly p2) of
 --       (Right (p1',p2',ctx), _                  ) -> Right (p1',p2', \ pi' -> c (ctx pi') p2)
 --       (_                  , Right (p1',p2',ctx)) -> Right (p1',p2', \ pi' -> c p1 (ctx pi'))
@@ -119,20 +121,9 @@ splitMax (Max p q)  = splitMax p ++ splitMax q
 --   splitMaxPoly (Max p1 p2)  =
 --     case splitBinOp Max p1 p2 of {Left _ -> Right (p1, p2, id); s -> s}
 --   splitMaxPoly (Plus p1 p2) = splitBinOp Plus p1 p2
---   splitMaxPoly (Mult p1 p2) = splitBinOp Mult p1 p2  
-      
+--   splitMaxPoly (Mult p1 p2) = splitBinOp Mult p1 p2
 
-simp :: (Ord c, Ord v, IsNat c, SemiRing c) => MaxPoly v c -> MaxPoly v c
-simp = fromPolyList . filterSubsumed . nub . splitMax where -- 
-  fromPolyList [] = zero
-  fromPolyList ps = maximumA (map fromPoly ps)
 
-  fromPoly = P.fromPolynomial variable constant
-  -- TODO  max(x0 + x1 + x2,1 + x0)
-  filterSubsumed ps = foldr (\ p -> filter (not . subsumes p)) ps ps
-  p1 `subsumes` p2 =
-    and [ c1 >= c2 | (c1 :>=: c2) <- P.absolutePositive (p1 `P.minus` p2)]
-    && p1 /= p2
 
 degree :: MaxPoly v c -> Int
 degree (Var _)    = 1
@@ -141,15 +132,11 @@ degree (Plus p q) = degree p `max` degree q
 degree (Max p q)  = degree p `max` degree q
 degree (Mult p q) = degree p   +   degree q
 
+
 -- pretty printing
 
-instance (Eq c, Ord v, IsNat c, SemiRing c, PP.Pretty v, PP.Pretty c) => PP.Pretty (MaxPoly v c) where
-  -- pretty (Var v) = PP.pretty v
-  -- pretty (Const c) = PP.pretty c
-  -- pretty (Plus p1 p2) = PP.parens (PP.pretty p1 PP.<+> PP.text "+" PP.<+> PP.pretty p2)
-  -- pretty (Mult p1 p2) = PP.parens (PP.pretty p1 PP.<+> PP.text "*" PP.<+> PP.pretty p2)
-  -- pretty (Max p1 p2) = PP.parens (PP.pretty p1 PP.<+> PP.text "max" PP.<+> PP.pretty p2)
-  pretty = pp . splitMax where
-    pp [] = PP.text "0"
+instance (Eq c, Ord v, SemiRing c, PP.Pretty v, PP.Pretty c) => PP.Pretty (MaxPoly v c) where
+  pretty   = pp . splitMax where
+    pp []  = PP.text "0"
     pp [t] = PP.pretty t
-    pp ts = PP.text "max" PP.<> PP.tupled (PP.pretty `map` ts)
+    pp ts  = PP.text "max" PP.<> PP.tupled (PP.pretty `map` ts)

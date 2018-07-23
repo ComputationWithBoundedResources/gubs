@@ -1,23 +1,26 @@
-module GUBS.ConstraintSystem where
+module GUBS.Natural.ConstraintSystem where
 
-import           GUBS.Algebra
-import           GUBS.Constraint( Constraint( (:>=:) ) )
-import qualified GUBS.Constraint as C
-import qualified GUBS.Term as T
-import           GUBS.Utils
 
+import           Control.Monad                 (join, void)
 import           Control.Monad.IO.Class
-import           Control.Monad (join, void)
-import           System.IO
-import           Data.Char (digitToInt)
-import           Data.List (nub,foldl')
+import           Data.Char                     (digitToInt)
 import           Data.Graph
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import           Data.List                     (foldl', nub)
+import           System.IO
 import           Text.Parsec
 import           Text.ParserCombinators.Parsec (CharParser)
+import qualified Text.PrettyPrint.ANSI.Leijen  as PP
+
+import           GUBS.Algebra
+import qualified GUBS.MaxTerm                  as T
+import           GUBS.Natural.Constraint       (Constraint ((:>=:)))
+import qualified GUBS.Natural.Constraint       as C
+import           GUBS.Utils
+
 
 type TermConstraint f v = C.Constraint (T.Term f v)
 type ConstraintSystem f v = [TermConstraint f v]
+
 
 funs :: Eq f => TermConstraint f v -> [(f,Int)]
 funs c = nub (T.funsDL (C.lhs c) (T.funsDL (C.rhs c) []))
@@ -98,7 +101,7 @@ natural = lexeme (foldl' (\a i -> a * 10 + digitToInt i) 0 <$> many1 digit)
 term :: Parser (T.Term Symbol Variable)
 term = try constant <|> parens (try var <|> compound) where
   var = literal "var" >> (T.Var . Variable <$> identifier)
-  constant = fromNatural . fromIntegral <$> natural
+  constant = fromIntegral <$> natural
   compound = join (toTerm <$> identifier <*> many (lexeme term))
   toTerm f ts | f `notElem` ["*","+","max"] = return (T.Fun (Symbol f) ts)
   toTerm "*" ts  = return (prod ts)

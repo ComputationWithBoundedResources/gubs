@@ -1,19 +1,17 @@
 flags: {}
 packages:
 - '.'
-- location:
-    git: https://github.com/mzini/monad-trace
-    commit: 64ac8dc558e62b82711148f0570b6f12c3b14f0a
-  extra-dep: true
 extra-deps:
-- smtlib2-1.0
-- smtlib2-pipe-1.0
-- smtlib2-debug-1.0
-- atto-lisp-0.2.2.2
-- data-fix-0.0.3
-- z3-4.1.0
-- typed-process-0.1.0.0
-resolver: lts-7.11
+- git: https://github.com/mzini/monad-trace
+  commit: 64ac8dc558e62b82711148f0570b6f12c3b14f0a
+# - smtlib2-1.0
+# - smtlib2-pipe-1.0
+# - smtlib2-debug-1.0
+# - atto-lisp-0.2.2.2
+# - data-fix-0.0.3
+# - z3-4.1.0
+# - typed-process-0.1.0.0
+resolver: lts-11.6
 flags:
   gubs:
     Z3: false

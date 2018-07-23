@@ -1,4 +1,4 @@
-module GUBS.Term (
+module GUBS.MaxTerm (
   Term (..)
   , fun
   , variable
@@ -42,8 +42,8 @@ fun = Fun
 variable :: v -> Term f v
 variable = Var
 
-constant :: (IsNat n, Integral n) => n -> Term f v
-constant = Const . fromNatural
+constant :: Integer -> Term f v
+constant = Const
 
 instance IsString (Term f String) where
   fromString = Var

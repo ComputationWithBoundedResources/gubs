@@ -5,7 +5,7 @@
 --   * yices 2.5.2 (do not use --interactive flag) but --incremental is not supported for QF_NIA
 --
 -- MS: This module should replace Gubs.Solver.SMTLib and the remove the dependency to the smtlib2 package.
-module GUBS.Solver.SMTLib2.Pipe (
+module GUBS.Solver.SMTLib2 (
   runSMTLib2
   ) where
 
@@ -24,6 +24,7 @@ import           Text.Read                    hiding (Symbol, lift)
 import qualified GUBS.Polynomial              as Poly
 import           GUBS.Solver.Class
 
+-- import qualified Data.ByteString.Lazy.Char8 as BS (putStrLn)
 
 newtype Symbol  = Symbol Int deriving (Eq, Ord)
 
@@ -53,6 +54,7 @@ runSMTLib2 cmd args m' = go (send qfniaBS *> m' <* send exitBS) where
 
 send :: BS.Builder -> SolverM SMTLib2 ()
 send msg = St.gets inHandle >>= \inh -> liftIO $ do
+  -- BS.putStrLn (BS.toLazyByteString msg) -- print script on stdout
   BS.hPutBuilder inh msg
   BS.hPutBuilder inh (charBS '\n')
   hFlush inh
