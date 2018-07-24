@@ -21,7 +21,7 @@ import qualified GUBS.Natural.Interpretation   as I
 import           GUBS.Natural.Strategy
 
 
-renaming :: Eq v => [Term f v] -> [I.Var] -> Maybe [(v,MP.MaxPoly I.Var c)]
+renaming :: Eq v => [Term f v c] -> [I.Var] -> Maybe [(v,MP.MaxPoly I.Var c)]
 renaming [] _ = Just []
 renaming (Var v:ts) (pv:pvs) = do
   s <- renaming ts pvs
@@ -29,7 +29,7 @@ renaming (Var v:ts) (pv:pvs) = do
   return ((v,MP.variable pv):s)
 renaming _ _ = Nothing
 
-funsOfArgs :: [Term f v] -> [(f,Int)]
+funsOfArgs :: [Term f v c] -> [(f,Int)]
 funsOfArgs = foldr T.funsDL [] . foldr T.argsDL []
 
 logBinding :: (PP.Pretty a3, PP.Pretty a2, PP.Pretty a1, MonadTrace String m) => a1 -> [(a4, a2)] -> a3 -> m ()
@@ -59,14 +59,14 @@ groupWith f = groupBy (\eq1 eq2 -> f eq1 == f eq2) . sortBy (compare `on` f)
 --              where ar = length ts
 --   propagate _ c = return (Left c)
 
-substitute :: (Eq c, SemiRing c, Eq v) => [(v,MP.MaxPoly v' c)] -> MP.MaxPoly v c -> MP.MaxPoly v' c
+substitute :: (Num c, Eq v) => [(v,MP.MaxPoly v' c)] -> MP.MaxPoly v c -> MP.MaxPoly v' c
 substitute s = MP.substitute s' where
   s' v = case lookup v s of
     Nothing -> undefined -- MP.variable v
     Just p  -> p
 
 
-partiallyInterpret :: (Ord f, Integral c, Monad m) => Processor f c v m
+partiallyInterpret :: (Ord f, Num c, Monad m) => Processor f c v m
 partiallyInterpret cs = do
   i <- getInterpretation
   return (Progress [ I.pInterpret i l :>=: I.pInterpret i r | (l :>=: r) <- cs])
@@ -78,7 +78,7 @@ partiallyInterpret cs = do
 --
 -- Given a paritally interpreted constraint @f(x) = f(x) >= x+1 = g(x)@ we set @f(x) = g(x) = x+1@ if @f@ only occurs
 -- once on the lhs of the constraint system.
-propagateUp :: (IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Ord f, PP.Pretty f, Ord v, Monad m) => Processor f c v m
+propagateUp :: (PP.Pretty f, Ord f, Eq v, PP.Pretty c, Eq c, Num c, Monad m) =>  Processor f c v m
 propagateUp = propagateUp' ==> partiallyInterpret where
   propagateUp' cs = do
     i <- getInterpretation
@@ -100,7 +100,7 @@ propagateUp = propagateUp' ==> partiallyInterpret where
         propagate _ g = return g
 
 -- | Like `propagateUp` but propagates interpretation from left to right.
-propagateDown :: (IsNat c, SemiRing c, Integral c, Max c, PP.Pretty c, Ord f, PP.Pretty f, Ord v, Monad m) => Processor f c v m
+propagateDown :: (Ord f, PP.Pretty f, PP.Pretty c, Eq c, Eq v, Num c, Monad m) => Processor f c v m
 propagateDown = propagateDown' ==> partiallyInterpret where
   propagateDown' cs = do
     i <- getInterpretation
@@ -122,7 +122,7 @@ propagateDown = propagateDown' ==> partiallyInterpret where
         propagate _ g = return g
 
 -- | Fixes the interpretation of symbols occuring only on the rhs of constraints to zero.
-eliminate :: (IsNat c, Integral c, PP.Pretty f, Monad m, Ord f) => Processor f c v m
+eliminate :: (Ord f, PP.Pretty f, Num c, Monad m) => Processor f c v m
 eliminate = partiallyInterpret <== \ cs ->  do
   i <- getInterpretation
   let fs = rfuns cs Set.\\ (Set.fromList (I.domain i) `Set.union` lfuns cs)
@@ -134,13 +134,13 @@ eliminate = partiallyInterpret <== \ cs ->  do
     eliminate' fs cs = do
       forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Eliminated:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
-        modifyInterpretation (\ i -> I.insert i f ar (fromNatural (0 :: Integer)))
+        modifyInterpretation (\ i -> I.insert i f ar zero)
       return (Progress cs)
 
 -- | Simplify constraints setting variables not occuring on the rhs to zero.
 --
 -- > f(x,y) >= g(x)  ~>  f(x,0) >= g(x)
-instantiate :: (PP.Pretty f, PP.Pretty v, Eq v, Monad m) => Processor f c v m
+instantiate :: (PP.Pretty f, PP.Pretty v, PP.Pretty c, Num c, Eq v, Monad m) => Processor f c v m
 instantiate cs = toProgress <$> partitionEithers <$> mapM inst cs where
   toProgress (_,[]) = NoProgress
   toProgress (ls,rs) = Progress (ls ++ rs)
@@ -149,7 +149,7 @@ instantiate cs = toProgress <$> partitionEithers <$> mapM inst cs where
     case nub [ v | v <- T.vars s, v `notElem` T.vars t ] of
       [] -> return (Left c)
       vs -> do
-        let subst v | v `elem` vs = fromNatural (0 :: Integer)
+        let subst v | v `elem` vs = zero
                     | otherwise = Var v
         let c' = T.substitute subst s :>=: t
         logMsg (PP.text "Substituted:" PP.<+> PP.pretty c PP.<+> PP.text "↦" PP.<+> PP.pretty c')
@@ -161,7 +161,7 @@ instantiate cs = toProgress <$> partitionEithers <$> mapM inst cs where
 -- interpretation for a constructor @c(x1,...,xn)@ to @x1+...+xn+1@.
 --
 -- This is clearly incomplete. And as experiments show only rarely useful.
-fixSli :: (Ord f, PP.Pretty f, IsNat c, Integral c, Additive c, Monad m) => Processor f c v m
+fixSli :: (Ord f, PP.Pretty f, Num c, Monad m) => Processor f c v m
 fixSli = partiallyInterpret <== \ cs -> do
   i <- getInterpretation
   let fs = filter (isConstructor cs) $ CS.funsCS cs \\ (I.domain i)
@@ -179,7 +179,7 @@ fixSli = partiallyInterpret <== \ cs -> do
     fixate fs cs = do
       forM_ fs $ \ (f,ar) -> do
         logMsg (PP.text "Fixate:" PP.<+> PP.pretty f PP.<> PP.text "/" PP.<> PP.int ar)
-        let sli = sumA (MP.variable <$> take ar I.variables) .+ (fromNatural (1 :: Integer))
+        let sli = sumA (MP.variable <$> take ar I.variables) + one
         modifyInterpretation (\i' -> I.insert i' f ar sli)
       return (Progress cs)
 

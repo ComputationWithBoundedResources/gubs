@@ -1,6 +1,17 @@
+{-# LANGUAGE DerivingStrategies #-}
 module GUBS.Algebra where
 
-import Data.Foldable (toList)
+
+import           Control.Monad                   (guard)
+import           Data.Foldable                   (toList)
+import           Data.Ratio                      (Ratio)
+import qualified Data.Ratio                      as R (denominator, numerator,
+                                                       (%))
+import           Text.ParserCombinators.ReadP    (skipSpaces)
+import           Text.ParserCombinators.ReadPrec
+import qualified Text.PrettyPrint.ANSI.Leijen    as PP
+import           Text.Read
+
 
 zero, one :: Num a => a
 zero = fromInteger 0
@@ -15,79 +26,66 @@ sumA (toList -> l)  = foldr1 (+) l
 prod (toList -> []) = one
 prod (toList -> l)  = foldr1 (*) l
 
-class Max a where
+class Num a => Max a where
   maxA :: a -> a -> a
+  maximumA ::(Foldable f, Max a) => f a -> a
+  maximumA (toList -> []) = zero
+  maximumA (toList -> l)  = foldr1 maxA l
 
 instance Max Integer where
   maxA = max
 
+-- Q
 
--- infixr 8 .^
--- infixl 7 .*
--- infixl 6 .+, .-
+newtype Q = Q { ratio :: Rational }
+  deriving newtype (Eq, Ord, Num, Fractional, Real, Show, Read)
 
+instance Max Q where
+  maxA = max
 
--- class Additive a where
---   (.+) :: a -> a -> a
---   zero :: a
-  
---   sumA :: Foldable f => f a -> a
---   sumA (toList -> []) = zero
---   sumA (toList -> l) = foldr1 (.+) l
-  
--- class Additive a => AdditiveGroup a where
---   neg :: a -> a
---   neg a = zero .- a
---   (.-) :: a -> a -> a
---   a .- b = a .+ neg b
+(%) :: Integer -> Integer -> Q
+n % d = Q $ n R.% d
 
--- class Multiplicative a where
---   (.*) :: a -> a -> a
---   one  :: a
-  
---   prod :: Foldable f => f a -> a
---   prod (toList -> []) = one
---   prod (toList -> l) = foldr1 (.*) l
+numerator, denominator :: Q -> Integer
+numerator   = R.numerator   . ratio
+denominator = R.denominator . ratio
 
---   (.^) :: Integral b => a -> b -> a
---   a .^ b = prod (replicate (fromIntegral b) a)
+toRat :: Real a => a -> Q
+toRat = Q . toRational
 
--- type SemiRing a = (Additive a,      Multiplicative a)
--- type Ring  a    = (AdditiveGroup a, Multiplicative a)
+showQ :: Q-> String
+showQ q
+  | n == 0    = "0"
+  | d == 1    = show n
+  | otherwise = show (ratio q)
+  where
+    n = numerator q
+    d = denominator q
 
+readQ :: String -> Q
+readQ = either error id . readE
 
--- class Additive a => Max a where
---   maxA :: a -> a -> a
+readE :: String -> Either String Q
+readE s =
+  case [ x | (x,"") <- readPrec_to_S readPrec' minPrec s ] of
+      [x] -> Right x
+      []  -> Left "Prelude.read: no parse"
+      _   -> Left "Prelude.read: ambiguous parse"
+  where
+  readPrec' = readRat <++ readInteger <++ readRatio <++ readDouble <++ pfail where
+    readInteger = fromInteger <$> (readPrec :: ReadPrec Integer)
+    readDouble  = toRat       <$> (readPrec :: ReadPrec Double)
+    readRat     = do
+      k <- get
+      guard $ k == '/'
+      whitespace
+      n <- readPrec :: ReadPrec Integer
+      whitespace
+      d <- readPrec :: ReadPrec Integer
+      return $ n % d
+    whitespace = lift skipSpaces
+    readRatio   = Q <$> (readPrec :: ReadPrec (Ratio Integer))
 
---   maximumA :: Foldable f => f a -> a
---   maximumA (toList -> []) = zero
---   maximumA (toList -> l)  = foldr1 maxA l
+instance PP.Pretty Q where
+  pretty = PP.text . showQ
 
-  
--- class IsNat a where
---   fromNatural_ :: Integer -> a
-
--- fromNatural :: (Integral a, IsNat b) => a -> b
--- fromNatural = fromNatural_ . fromIntegral 
-
-
--- -- instances
-
--- instance IsNat Integer where
---   fromNatural_ i = i
-
--- instance Additive Integer where
---   (.+) = (+)
---   zero = 0
-
--- instance Max Integer where
---   maxA = max
-
--- instance AdditiveGroup Integer where
---   neg = negate
---   (.-) = (-)
-  
--- instance Multiplicative Integer where
---   (.*) = (*)
---   one = 1
-  

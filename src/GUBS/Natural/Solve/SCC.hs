@@ -12,7 +12,7 @@ import           GUBS.Natural.Strategy
 sccDecompose :: (Eq f, Monad m) => Processor f c v m -> Processor f c v m
 sccDecompose = sccDecomposeWith CS.sccs
 
-sccDecomposeWith :: Monad m => (ConstraintSystem f v -> [ConstraintSystem f v]) -> Processor f c v m -> Processor f c v m
+sccDecomposeWith :: Monad m => (ConstraintSystem f v c -> [ConstraintSystem f v c]) -> Processor f c v m -> Processor f c v m
 sccDecomposeWith f p cs =
   case f cs of
     [] -> return NoProgress
@@ -25,7 +25,7 @@ sccDecomposeWith f p cs =
 
 -- @chainWith f p cs@ behaves similar to @try (exhaustive (sccDecomposeWith f p cs))@; but decomposition is applied
 -- only once.
-chainWith :: Monad m => (ConstraintSystem f v -> [[TermConstraint f v]]) -> Processor f c v m -> Processor f c v m
+chainWith :: Monad m => (ConstraintSystem f v c -> [[TermConstraint f v c]]) -> Processor f c v m -> Processor f c v m
 chainWith f p cs = go (f cs) where
   go []     = return $ Progress []
   go (s:ss) = do

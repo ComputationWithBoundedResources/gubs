@@ -24,7 +24,7 @@ instance Num c => Num (MaxPoly v c) where
   abs         = error "MaxPolynomial.Num.abs: not defined."
   signum      = error "MaxPolynomial.Num.signum: not defined."
 
-instance Max (MaxPoly v c) where
+instance Num c => Max (MaxPoly v c) where
   maxA = Max
 
 

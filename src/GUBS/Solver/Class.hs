@@ -20,13 +20,16 @@ module GUBS.Solver.Class (
   , F.smtAny
   ) where
 
+
 import           Control.Monad       ((>=>))
 
 import           GUBS.Polynomial     (Polynomial)
 import qualified GUBS.Polynomial     as Poly
 import qualified GUBS.Solver.Formula as F
+import GUBS.Algebra
 
-type SMTExpression s = Polynomial (NLiteral s) Integer
+
+type SMTExpression s = Polynomial (NLiteral s) Q
 type SMTFormula s    = F.Formula  (BLiteral s) (SMTExpression s)
 
 class (Monad (SolverM s), Ord (NLiteral s)) => SMTSolver s where
@@ -42,7 +45,7 @@ class (Monad (SolverM s), Ord (NLiteral s)) => SMTSolver s where
 
   assertFormula :: SMTFormula s -> SolverM s ()
   checkSat :: SolverM s Bool
-  getValue :: NLiteral s -> SolverM s Integer
+  getValue :: NLiteral s -> SolverM s Q
 
 
 assert :: SMTSolver s => SMTFormula s -> SolverM s ()
@@ -68,6 +71,6 @@ assert = letElim >=> assertFormula where
 stack :: SMTSolver s => SolverM s a -> SolverM s a
 stack m = push *> m <* pop
 
-evalM :: SMTSolver s => SMTExpression s -> SolverM s Integer
+evalM :: SMTSolver s => SMTExpression s -> SolverM s Q
 evalM = Poly.evalWithM getValue
 

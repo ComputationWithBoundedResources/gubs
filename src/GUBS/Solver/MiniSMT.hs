@@ -13,7 +13,6 @@ import qualified Data.ByteString.Builder as BS
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe (fromMaybe, isJust)
-import           Data.Monoid
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           System.IO (hClose, hFlush, hSetBinaryMode, stderr, hPutStrLn)
@@ -22,8 +21,9 @@ import           System.Exit
 import           System.Process
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import qualified GUBS.Polynomial as Poly
 import           GUBS.Solver.Class
+import           GUBS.Solver.Script
+import GUBS.Algebra
 
 
 data MiniSMT
@@ -38,23 +38,26 @@ instance Show SymbolType where
   show BoolType = "Bool"
   show NatType = "Nat"  
 
-type Assign = Map Symbol Integer
+type Assign = Map Symbol Q
 
-lookup :: Symbol -> Assign -> Integer
+lookup :: Symbol -> Assign -> Q
 lookup s a = fromMaybe 0 (Map.lookup s a)
 
-data Frame = Frame { fFreeVars    :: Set (Symbol,SymbolType)
-                   , fAssign      :: Maybe Assign
-                   , fConstraints :: [SMTFormula MiniSMT]}
+data Frame = Frame 
+  { fFreeVars    :: Set (Symbol,SymbolType)
+  , fAssign      :: Maybe Assign
+  , fConstraints :: [SMTFormula MiniSMT] }
 
-data SolverState = SolverState { freshId    :: Int
-                               , curFrame   :: Frame
-                               , frameStack :: [Frame] }
+data SolverState = SolverState 
+  { freshId    :: Int
+  , curFrame   :: Frame
+  , frameStack :: [Frame] }
 
 initialState :: SolverState
-initialState = SolverState { freshId = 0
-                           , curFrame = Frame Set.empty Nothing [] 
-                           , frameStack = [] }
+initialState = SolverState 
+  { freshId = 0
+  , curFrame = Frame Set.empty Nothing [] 
+  , frameStack = [] }
                
 assign :: SolverState -> Maybe Assign
 assign = fAssign . curFrame
@@ -85,70 +88,16 @@ addConstraint c st@SolverState{..} =
 -- smt script formatter
 ----------------------------------------------------------------------
 
-stringBS :: String -> BS.Builder
-stringBS = BS.string8
 
-integerBS :: Integer -> BS.Builder
-integerBS n | n >= 0 = BS.integerDec n
-            | otherwise = app "-" [integerBS (-n)]
 
-charBS :: Char -> BS.Builder
-charBS = BS.char8
 
-(<+>) :: BS.Builder -> BS.Builder -> BS.Builder
-e1 <+> e2 = e1 <> charBS ' ' <> e2
-
-(</>) :: BS.Builder -> BS.Builder -> BS.Builder
-e1 </> e2 = e1 <> charBS '\n' <> e2
-
-sepWith :: (BS.Builder -> BS.Builder -> BS.Builder) -> [BS.Builder] -> BS.Builder
-sepWith _  [] = mempty
-sepWith _ [e]  = e
-sepWith sep (e:es) = e `sep` sepWith sep es
-
-vsep,hsep :: [BS.Builder] -> BS.Builder
-vsep = sepWith (</>)
-hsep = sepWith (<+>)
-
-sexpr :: [BS.Builder] -> BS.Builder
-sexpr es = charBS '(' <> hsep es <> charBS ')'
-
-app :: String -> [BS.Builder] -> BS.Builder
-app f es = sexpr (stringBS f : es)
-  
 toScript :: [(Symbol, SymbolType)] -> [SMTFormula MiniSMT] -> BS.Builder
 toScript vs cs =
   app "set-logic" [stringBS "QF_NIA"]
   </> vsep [ app "declare-fun" [stringBS (show v), sexpr [], stringBS (show tpe)]
            | (v,tpe) <- vs]
-  </> vsep [ app "assert" [formToBS d] | d <- cs]
+  </> vsep [ assertBS d | d <- cs]
   </> app "check-sat" []
-  where
-    formToBS Top                         = stringBS "true"
-    formToBS Bot                         = stringBS "false"
-    formToBS (Lit (BoolLit (BLit l)))    = stringBS (show l)
-    formToBS (Lit (NegBoolLit (BLit l))) = app "not" [stringBS (show l)]
-    formToBS (Atom (Eq e1 e2))           = app "=" [ expressionToBS e1, expressionToBS e2 ]
-    formToBS (Atom (Geq e1 e2))          = app ">=" [ expressionToBS e1, expressionToBS e2 ]
-    formToBS (And f1 f2)                 = app "and" [ formToBS f1, formToBS f2 ]
-    formToBS (Or f1 f2)                  = app "or" [ formToBS f1, formToBS f2 ]
-    formToBS (Iff{})                     = error "MiniSMT.toScript: unexpected Iff."
-    formToBS (LetB{})                    = error "MiniSMT.toScript: unexpected LetB."
-    -- TODO lets?
-
-    expressionToBS e = polyToBS e where
-      add []       = integerBS 0
-      add [a]      = a
-      add as       = app "+" as
-      mul 0 _      = integerBS 0
-      mul c []     = integerBS c
-      mul 1 [a]    = a
-      mul (-1) [a] = app "-" [a]
-      mul 1 as     = app "*" as
-      mul c as     = app "*" (integerBS c : as)
-      
-      polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms ]
-      monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate n (stringBS (show v)) | (NLit v,n) <- ps ])
     
 
 -- result parser
@@ -158,7 +107,7 @@ parseOut :: String -> Maybe Assign
 parseOut out =
   case lines out of
     "sat" : _ : ls -> Just $ 
-      Map.fromList [ (case read var of NLit s -> s, read val)
+      Map.fromList [ (case read var of NLit s -> s, readQ val)
                    | l <- ls
                    , let (var,_:val) = break (== '=') (filter (/= ' ') l)]    
     _ -> Nothing
@@ -237,8 +186,10 @@ instance Read (BLiteral MiniSMT) where
 
 instance PP.Pretty (NLiteral MiniSMT) where
   pretty (NLit l) = PP.text (show l)
+
 instance PP.Pretty (BLiteral MiniSMT) where
   pretty (BLit l) = PP.text (show l)
 
 miniSMT :: SolverM MiniSMT a -> IO a
 miniSMT (S m) = St.evalStateT m initialState
+

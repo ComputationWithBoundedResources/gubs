@@ -18,18 +18,18 @@ import qualified GUBS.Natural.Constraint       as C
 import           GUBS.Utils
 
 
-type TermConstraint f v = C.Constraint (T.Term f v)
-type ConstraintSystem f v = [TermConstraint f v]
+type TermConstraint f v c   = C.Constraint (T.Term f v c)
+type ConstraintSystem f v c = [TermConstraint f v c]
 
 
-funs :: Eq f => TermConstraint f v -> [(f,Int)]
+funs :: Eq f => TermConstraint f v c -> [(f,Int)]
 funs c = nub (T.funsDL (C.lhs c) (T.funsDL (C.rhs c) []))
 
-funsCS :: Eq f => ConstraintSystem f v -> [(f,Int)]
+funsCS :: Eq f => ConstraintSystem f v c -> [(f,Int)]
 funsCS = nub . foldr funsC [] where
   funsC c = T.funsDL (C.lhs c) . T.funsDL (C.rhs c)
 
-lhss,rhss :: ConstraintSystem f v -> [T.Term f v]
+lhss,rhss :: ConstraintSystem f v c -> [T.Term f v c]
 lhss = map C.lhs
 rhss = map C.rhs
 
@@ -44,12 +44,12 @@ sccsWith p cs = map flattenSCC ccs where
 -- (2) x    >= g(x)
 -- we obtain (2) -> (1); if we set (1) f(x) = 0 >= 0 = g(x) we obtain (2) x >= 0
 -- | Default scc decomposition.
-sccs :: Eq f => ConstraintSystem f v -> [ConstraintSystem f v]
+sccs :: Eq f => ConstraintSystem f v c -> [ConstraintSystem f v c]
 sccs = sccsWith $ \ from to -> any (`elem` funs from) (T.funs (C.lhs to))
 
 -- MS: using @trs2cs-0@ constraints for polynomial interpretations for TRSs contain stronly linear constraints, eg
 -- @x1+...+xn+k() >= c(x1,...,xn)@. Since k() is fresh such constraints are always sinlge node SCCs in `sccs`.
-sccs' :: Eq f => ConstraintSystem f v -> [ConstraintSystem f v]
+sccs' :: Eq f => ConstraintSystem f v c -> [ConstraintSystem f v c]
 sccs' = sccsWith $ \from to ->
   if isSli to || isSli from
     then any (`elem` funs from) (funs to)
@@ -64,10 +64,10 @@ sccs' = sccsWith $ \from to ->
 
 -- pretty printing
 
-instance {-# OVERLAPPING #-} (PP.Pretty f, PP.Pretty v) => PP.Pretty (ConstraintSystem f v) where
+instance {-# OVERLAPPING #-} (PP.Pretty f, PP.Pretty v, PP.Pretty c) => PP.Pretty (ConstraintSystem f v c) where
   pretty = PP.vcat . map PP.pretty
 
-instance (PP.Pretty f, PP.Pretty v) => PrettySexp (ConstraintSystem f v) where
+instance (PP.Pretty f, PP.Pretty v, PP.Pretty c) => PrettySexp (ConstraintSystem f v c) where
   prettySexp = PP.vcat . map prettySexp
 
 -- parsing
@@ -98,7 +98,7 @@ identifier = lexeme (many1 (try alphaNum <|> oneOf "'_/#?*+-!:@[]"))
 natural :: Parser Int
 natural = lexeme (foldl' (\a i -> a * 10 + digitToInt i) 0 <$> many1 digit)
 
-term :: Parser (T.Term Symbol Variable)
+term :: Parser (T.Term Symbol Variable Q)
 term = try constant <|> parens (try var <|> compound) where
   var = literal "var" >> (T.Var . Variable <$> identifier)
   constant = fromIntegral <$> natural
@@ -109,21 +109,21 @@ term = try constant <|> parens (try var <|> compound) where
   toTerm "max" ts  = return (maximumA ts)
   toTerm _ _ = fail "toTerm"
 
-constraint :: Parser (TermConstraint Symbol Variable)
+constraint :: Parser (TermConstraint Symbol Variable Q)
 constraint = parens $ do
   c <- literal ">=" >> return (:>=:)
        -- <|> (literal "=" >> return (:=:))
   c <$> lexeme term <*> lexeme term
 
-constraintSystem :: Parser (ConstraintSystem Symbol Variable)
+constraintSystem :: Parser (ConstraintSystem Symbol Variable Q)
 constraintSystem = many (lexeme constraint)
 
-csFromFile :: MonadIO m => FilePath -> m (Either ParseError (ConstraintSystem Symbol Variable))
+csFromFile :: MonadIO m => FilePath -> m (Either ParseError (ConstraintSystem Symbol Variable Q))
 csFromFile file = runParser parser () sn <$> liftIO (readFile file) where
   sn = "<file " ++ file ++ ">"
   parser = many whiteSpace1 *> constraintSystem <* eof
 
-csToFile :: (MonadIO m, PP.Pretty f, PP.Pretty v) => ConstraintSystem f v -> FilePath -> m ()
+csToFile :: (MonadIO m, PP.Pretty f, PP.Pretty v, PP.Pretty c) => ConstraintSystem f v c -> FilePath -> m ()
 csToFile cs f = liftIO $ do
    handle <- openFile f WriteMode
    PP.hPutDoc handle (prettySexp cs)

@@ -85,7 +85,7 @@ isZero p = and [ c == zero || null (toPowers m) | (c,m) <- toMonos p ]
 zeroPoly :: Polynomial v c
 zeroPoly = Poly (M.empty)
 
-instance (Ord v, Num' c) => Num' (Polynomial v c) where
+instance (Ord v, Num c) => Num (Polynomial v c) where
   Poly ms1 + Poly ms2 = Poly (M.unionWith (+) ms1 ms2)
   Poly ms1 * Poly ms2 = Poly (M.fromListWith (+) ms) where
     ms =
@@ -184,4 +184,8 @@ instance Num c => Num (Diff c) where
   fromInteger c = Diff { posAC = fromInteger c, negAC = zero }
   abs           = error "Polynomial.Num.abs: not defined."
   signum        = error "Polynomial.Num.signum: not defined."
+
+minus :: (Ord v,  Num c) => Polynomial v c -> Polynomial v c -> DiffPolynomial v c
+minus p1 p2 = fmap k p1 - fmap k p2
+  where k c =  Diff { posAC = c, negAC = zero }
 

@@ -2,7 +2,6 @@ module GUBS.Solver.Formula where
 
 import Data.Foldable (toList)
 
-import GUBS.Algebra
 
 data Atom e = Geq e e | Eq e e
   deriving (Functor, Foldable, Traversable)
@@ -47,9 +46,6 @@ atoms (LetB f1 f2) = atoms f1 ++ atoms (f2 undefined)
 
 negLiteral :: l -> Formula l e
 negLiteral = Lit . NegBoolLit
-
-gtA :: SemiRing e => e -> e -> Formula l e
-gtA e1 e2  = Atom (Geq e1 (e2 .+ one))
 
 eqA,geqA :: e -> e -> Formula l e
 eqA e1 e2  = Atom (Eq e1 e2)

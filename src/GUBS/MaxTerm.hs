@@ -42,7 +42,7 @@ instance Num c => Num (Term f v c) where
   abs         = error "MaxTerm.Num.abs: not defined."
   signum      = error "MaxTerm.Num.signum: not defined."
 
-instance Max (Term f v c) where
+instance Num c => Max (Term f v c) where
   maxA = Max
 
 -- pattern ZERO :: (Eq c, Num c) => Term f v c

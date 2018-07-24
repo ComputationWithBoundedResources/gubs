@@ -66,6 +66,10 @@ data MM = ZeroOut | DecreaseCoeff | ShiftMax deriving (Show)
 
 data SMTMinimization = SMTMinimize MM | SMTSequence SMTMinimization SMTMinimization | Try SMTMinimization | Success
 
+fromNatural :: Q -> SMTExpression s
+fromNatural = P.coefficient
+
+
 zeroOut :: SMTMinimization
 zeroOut = SMTMinimize ZeroOut
 
@@ -115,7 +119,7 @@ type AbstractCoefficient s = SMTExpression s
 type AbstractMaxPoly s v = MP.MaxPoly v (AbstractCoefficient s)
 type AbstractInterpretation s f = I.Interpretation f (AbstractCoefficient s)
 
-type SMT s f a = StateT (SMTOpts f, Interpretation f Integer,AbstractInterpretation s f) (TraceT String (SolverM s)) a
+type SMT s f a = StateT (SMTOpts f, Interpretation f Q,AbstractInterpretation s f) (TraceT String (SolverM s)) a
 
 liftSMT :: SMTSolver s => SolverM s a -> SMT s f a
 liftSMT = lift . lift
@@ -123,8 +127,8 @@ liftSMT = lift . lift
 freshCoeff :: SMTSolver s => Maybe Int -> Maybe Int -> SMT s f (AbstractCoefficient s)
 freshCoeff mlb mub = liftSMT $ do
   v <- P.variable <$> freshNat
-  whenJust mlb $ \ lb -> assert (v `smtGeq` fromNatural lb)
-  whenJust mub $ \ ub -> assert (fromNatural ub `smtGeq` v)
+  whenJust mlb $ \ lb -> assert (v               `smtGeq` fromIntegral lb)
+  whenJust mub $ \ ub -> assert (fromIntegral ub `smtGeq` v)
   return v
 
 getOpts :: SMTSolver s => SMT s f (SMTOpts f)
@@ -133,7 +137,7 @@ getOpts = do (opts,_,_) <- get; return opts
 getAInter :: SMTSolver s => SMT s f (AbstractInterpretation s f)
 getAInter = do (_,_,ai) <- get; return ai
 
-getCInter :: SMTSolver s => SMT s f (Interpretation f Integer)
+getCInter :: SMTSolver s => SMT s f (Interpretation f Q)
 getCInter = do (_,ci,_) <- get; return ci
 
 
@@ -149,10 +153,10 @@ freshPoly (f,ar) = do
     else toMaxPoly <$> template shape degree
   where
     toPoly powers = do
-      let mono = [ P.variable v .^ i | (v,i) <- powers, i > 0]
+      let mono = [ P.variable v ^ i | (v,i) <- powers, i > 0]
       SMTOpts {..} <- getOpts
       c <- freshCoeff Nothing (if null mono then maxConst else maxCoeff)
-      return (P.coefficient c .* prod mono)
+      return (P.coefficient c * prod mono)
     template MultMixed degree =
       sumA <$> sequence [ toPoly [ (v,1::Int) | v <- vs]
                         | vs <- subsequences (take ar I.variables)
@@ -166,25 +170,25 @@ freshPoly (f,ar) = do
       Just ms -> sumA <$> sequence [ toPoly' m | m <- ms ]
       Nothing -> template s degree
     toPoly' (mlb,mub,m) = do
-      let mono = [ P.variable v .^ i | (v@(I.V j),i) <- P.toPowers m, i > 0, j >= 0, j < ar ]
+      let mono = [ P.variable v ^ i | (v@(I.V j),i) <- P.toPowers m, i > 0, j >= 0, j < ar ]
       SMTOpts {..} <- getOpts
       c <- case (mlb,mub) of
-        (Just i, Just j)   -> if i == j then return (fromNatural i) else freshCoeff mlb mub
+        (Just i, Just j)   -> if i == j then pure (fromIntegral i) else freshCoeff mlb mub
         (Nothing, Nothing) -> freshCoeff Nothing (if null mono then maxConst else maxCoeff)
         _                  -> freshCoeff mlb mub
-      return (P.coefficient c .* prod mono)
+      return (P.coefficient c * prod mono)
 
     exclusive ps = assert $
       smtBigAnd [ smtAll (smtEq zero . fst) ms `smtOr` smtAny dominating ms
                 | p <- ps, let ms = [(c,m) | (c,m) <- P.toMonos p]]
       where
-        dominating (c,m) = smtBigAnd [ c `smtGeq` (c' .+ fromNatural (1::Int)) | c' <- coeffs M.! m, c /= c' ]
+        dominating (c,m) = smtBigAnd [ c `smtGeq` (c' + one) | c' <- coeffs M.! m, c /= c' ]
         coeffs = M.unionsWith (++) [ (: []) `fmap` P.toMonoMap p | p <- ps]
 
     toMaxPoly = P.fromPolynomial MP.variable MP.constant
 
-interpret :: (Ord f, SMTSolver s) => Term f v -> SMT s f (AbstractMaxPoly s v)
-interpret = T.interpretM (return . MP.variable) i where
+interpret :: (Ord f, SMTSolver s) => Term f v Q -> SMT s f (AbstractMaxPoly s v)
+interpret = T.interpretM (pure . MP.variable) i (pure . MP.Const . fromNatural) where
   i f as = I.apply <$> getPoly <*> return as
     where
       ar = length as
@@ -199,7 +203,7 @@ interpret = T.interpretM (return . MP.variable) i where
         modify (\ (opts,inter,ainter) -> (opts,inter,I.insert ainter f ar p))
         return p
 
-maxElim :: (Ord v, SemiRing c) => Constraint (MP.MaxPoly v c) -> Formula l (P.Polynomial v c)
+maxElim :: (Ord v, Num c) => Constraint (MP.MaxPoly v c) -> Formula l (P.Polynomial v c)
 maxElim = smtBigAnd . map elimLhs . elimRhs
   where
     elimRhs (l :>=: r) = [ (l,r') | r' <- MP.splitMax r ]
@@ -229,16 +233,16 @@ smtGeq = smtFactorIEQ simpGeq
 
 smtFactorIEQ :: SMTSolver s => (SMTExpression s -> SMTExpression s -> SMTFormula s)
              -> SMTExpression s -> SMTExpression s -> SMTFormula s
-smtFactorIEQ eq e1 e2 =
-  case P.factorise [e1,e2] of
-    Just ((_,m), [e1',e2']) -> F.smtBigOr ([ P.variable v `F.eqA` fromNatural (0 :: Integer) | v <- P.monoVariables m] ++ [e1' `eq` e2'])
-    _ -> e1 `eq` e2
+smtFactorIEQ eq e1 e2 = e1 `eq` e2
+  -- case P.factorise [e1,e2] of
+  --   Just ((_,m), [e1',e2']) -> F.smtBigOr ([ P.variable v `F.eqA` zero | v <- P.monoVariables m] ++ [e1' `eq` e2'])
+  --   _ -> e1 `eq` e2
 
 
 absolutePositive :: P.DiffPolynomial v c -> [Constraint c]
 absolutePositive p = [ P.posAC c :>=: P.negAC c | c <- P.coefficients p ]
 
-simp :: (Ord c, Ord v, SemiRing c) => MaxPoly v c -> MaxPoly v c
+simp :: (Ord c, Ord v, Num c) => MaxPoly v c -> MaxPoly v c
 simp = fromPolyList . filterSubsumed . nub . MP.splitMax where --
   fromPolyList [] = zero
   fromPolyList ps = maximumA (map fromPoly ps)
@@ -250,10 +254,10 @@ simp = fromPolyList . filterSubsumed . nub . MP.splitMax where --
     and [ c1 >= c2 | (c1 :>=: c2) <- absolutePositive (p1 `P.minus` p2)]
     && p1 /= p2
 
-fromAssignment :: SMTSolver s => AbstractInterpretation s f -> SMT s f (I.Interpretation f Integer)
+fromAssignment :: SMTSolver s => AbstractInterpretation s f -> SMT s f (I.Interpretation f Q)
 fromAssignment i = I.mapInter simp <$> liftSMT (traverse (traverse evalM) i)
 
-minimizeM :: (PP.Pretty f, SMTSolver s) => ConstraintSystem f v -> SMTMinimization -> SMT s f (Interpretation f Integer)
+minimizeM :: (PP.Pretty f, SMTSolver s) => ConstraintSystem f v c -> SMTMinimization -> SMT s f (Interpretation f Q)
 minimizeM _ ms = fst <$> (stateFromModel >>= execStateT (logInter >> walkS ms)) where
 
   stateFromModel = do
@@ -341,7 +345,7 @@ minimizeM _ ms = fst <$> (stateFromModel >>= execStateT (logInter >> walkS ms)) 
     logBinding ((f,i),p) = logMsg (PP.pretty f PP.<> ppArgs i PP.<+> PP.text "=" PP.<+> PP.pretty p)
     ppArgs i = PP.parens (PP.hcat (PP.punctuate (PP.text ",") [PP.pretty v | v <- take i I.variables]))
 
-solveM :: (PP.Pretty f, Ord f, Ord v, SMTSolver s) => ConstraintSystem f v -> SMT s f (Maybe (Interpretation f Integer))
+solveM :: (PP.Pretty f, Ord f, Ord v, SMTSolver s) => ConstraintSystem f v Q -> SMT s f (Maybe (Interpretation f Q))
 solveM cs = do
   let assertIeq = liftSMT . assert . F.subst dio . maxElim
   sequence_ [assertIeq =<< (:>=:) <$> interpret l <*> interpret r | l :>=: r <- cs ]
@@ -352,7 +356,7 @@ solveM cs = do
     dio (Eq{})    = error "SMT.solveM: unexpected Eq."
 
 
-smt :: (PP.Pretty f, Ord f, Ord v, MonadIO m) => Solver -> SMTOpts f -> Processor f Integer v m
+smt :: (PP.Pretty f, Ord f, Ord v, MonadIO m) => Solver -> SMTOpts f -> Processor f Q v m
 smt _ _ [] = return NoProgress
 smt solver opts cs = do
   inter <- getInterpretation
