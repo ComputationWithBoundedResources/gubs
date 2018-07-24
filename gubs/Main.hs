@@ -25,7 +25,7 @@ data GUBS = GUBS
 toSolver :: Solver -> N.Solver
 toSolver MiniSmt = N.MiniSmt
 toSolver Z3      = N.Pipe "z3" ["-in"]
-toSolver Yices2  = N.Pipe "yices-smt2" []
+toSolver Yices2  = N.Pipe "yices-smt2" [] -- yices-smt2 + non-linear => no push/pop => no minimisatoin
 
 
 defaultConfig :: GUBS
