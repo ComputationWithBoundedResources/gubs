@@ -1,12 +1,14 @@
 module GUBS.Solver.Script where
 
-import qualified Data.ByteString.Builder      as BS
-import Data.Monoid ((<>))
 
-import GUBS.Solver.Class
-import GUBS.Solver.Formula ()
-import qualified GUBS.Polynomial as Poly
-import GUBS.Algebra
+import qualified Data.ByteString.Builder as BS
+import           Data.Monoid             ((<>))
+
+import           GUBS.Algebra
+import qualified GUBS.Polynomial         as Poly
+import           GUBS.Solver.Class
+import           GUBS.Solver.Formula     ()
+
 
 -- smt script formatter
 ----------------------------------------------------------------------

@@ -11,4 +11,3 @@ import GUBS.Natural.ConstraintSystem as S hiding (constraint, funs)
 import GUBS.Natural.Interpretation   as S hiding (variables)
 import GUBS.Natural.Solve            as S
 
-

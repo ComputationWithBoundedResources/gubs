@@ -4,7 +4,7 @@ module GUBS.Natural.Solve.SCC
   , chainWith )
 where
 
-import           GUBS.Natural.ConstraintSystem (TermConstraint, ConstraintSystem)
+import           GUBS.Natural.ConstraintSystem (ConstraintSystem, TermConstraint)
 import qualified GUBS.Natural.ConstraintSystem as CS (sccs)
 import           GUBS.Natural.Strategy
 

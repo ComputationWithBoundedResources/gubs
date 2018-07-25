@@ -17,33 +17,35 @@ module GUBS.Natural.Solve.Encoding
   , noneM
   ) where
 
-import           Control.Applicative          ((<|>))
-import           Control.Monad                (replicateM)
-import           Control.Monad.IO.Class       (MonadIO, liftIO)
-import           Control.Monad.State          (StateT, evalStateT, execStateT, get, modify, put)
+
+import           Control.Applicative           ((<|>))
+import           Control.Monad                 (replicateM)
+import           Control.Monad.IO.Class        (MonadIO, liftIO)
+import           Control.Monad.State           (StateT, evalStateT, execStateT, get, modify, put)
 import           Control.Monad.Trace
-import           Control.Monad.Trans          (lift)
-import           Data.List                    (subsequences, nub)
-import qualified Data.Map                     as M
-import           Data.Maybe                   (fromJust)
+import           Control.Monad.Trans           (lift)
+import           Data.List                     (nub, subsequences)
+import qualified Data.Map                      as M
+import           Data.Maybe                    (fromJust)
 
 import           GUBS.Algebra
-import           GUBS.MaxPolynomial           (MaxPoly)
-import qualified GUBS.MaxPolynomial           as MP
-import qualified GUBS.Polynomial              as P
-import           GUBS.MaxTerm                    (Term (..))
-import qualified GUBS.MaxTerm                    as T
+import           GUBS.MaxPolynomial            (MaxPoly)
+import qualified GUBS.MaxPolynomial            as MP
+import           GUBS.MaxTerm                  (Term (..))
+import qualified GUBS.MaxTerm                  as T
+import qualified GUBS.Polynomial               as P
 import           GUBS.Solver
-import qualified GUBS.Solver.Formula          as F
+import qualified GUBS.Solver.Formula           as F
 import           GUBS.Utils
 
-import           GUBS.Natural.Constraint              (Constraint (..))
-import           GUBS.Natural.ConstraintSystem        (ConstraintSystem)
-import           GUBS.Natural.Strategy                (Processor, Result (..), getInterpretation, liftTrace, modifyInterpretation)
-import           GUBS.Natural.Interpretation          (Interpretation)
-import qualified GUBS.Natural.Interpretation          as I
+import           GUBS.Natural.Constraint       (Constraint (..))
+import           GUBS.Natural.ConstraintSystem (ConstraintSystem)
+import           GUBS.Natural.Interpretation   (Interpretation)
+import qualified GUBS.Natural.Interpretation   as I
+import           GUBS.Natural.Strategy         (Processor, Result (..), getInterpretation, liftTrace,
+                                                modifyInterpretation)
 
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import qualified Text.PrettyPrint.ANSI.Leijen  as PP
 
 
 -- options
@@ -188,7 +190,7 @@ freshPoly (f,ar) = do
     toMaxPoly = P.fromPolynomial MP.variable MP.constant
 
 interpret :: (Ord f, SMTSolver s) => Term f v Q -> SMT s f (AbstractMaxPoly s v)
-interpret = T.interpretM (pure . MP.variable) i (pure . MP.Const . fromNatural) where
+interpret = T.interpretM (pure . MP.variable) i (pure . MP.Const . P.coefficient) where
   i f as = I.apply <$> getPoly <*> return as
     where
       ar = length as
@@ -238,6 +240,9 @@ smtFactorIEQ eq e1 e2 = e1 `eq` e2
   --   Just ((_,m), [e1',e2']) -> F.smtBigOr ([ P.variable v `F.eqA` zero | v <- P.monoVariables m] ++ [e1' `eq` e2'])
   --   _ -> e1 `eq` e2
 
+
+absolutePositive' :: (Ord v, Num c) => P.Polynomial v c -> P.Polynomial v c -> [Constraint c]
+absolutePositive' p1 p2 = [ (c1 :>=: c2) | (c1,c2) <- P.zipCoefficients p1 p2 ]
 
 absolutePositive :: P.DiffPolynomial v c -> [Constraint c]
 absolutePositive p = [ P.posAC c :>=: P.negAC c | c <- P.coefficients p ]
@@ -352,7 +357,7 @@ solveM cs = do
   mo <- minimize <$> getOpts
   ifM (liftSMT checkSat) (Just <$> minimizeM cs mo) (return Nothing)
   where
-    dio (Geq l r) = smtBigAnd [ p `smtGeq` q | (p :>=: q) <- absolutePositive (l `P.minus` r) ]
+    dio (Geq l r) = smtBigAnd [ p `smtGeq` q | (p :>=: q) <- absolutePositive' l r ]
     dio (Eq{})    = error "SMT.solveM: unexpected Eq."
 
 
@@ -360,11 +365,11 @@ smt :: (PP.Pretty f, Ord f, Ord v, MonadIO m) => Solver -> SMTOpts f -> Processo
 smt _ _ [] = return NoProgress
 smt solver opts cs = do
   inter <- getInterpretation
-  let 
+  let
     run MiniSmt         = mapTraceT (liftIO . miniSMT)             $ evalStateT (solveM cs) (opts,inter,I.empty)
     run (Pipe cmd args) = mapTraceT (liftIO . runSMTLib2 cmd args) $ evalStateT (solveM cs) (opts,inter,I.empty)
 #ifdef WithZ3
-    run (Pipe cmd args) = mapTraceT (liftIO . zthree) $ evalStateT (solveM cs) (opts,inter,I.empty)
+    run ZThree          = mapTraceT (liftIO . zthree) $ evalStateT (solveM cs) (opts,inter,I.empty)
 #endif
   mi <- liftTrace (run solver)
   case mi of

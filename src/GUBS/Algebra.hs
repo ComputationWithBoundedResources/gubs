@@ -15,7 +15,7 @@ import           Text.Read
 
 zero, one :: Num a => a
 zero = fromInteger 0
-one  = fromInteger 0
+one  = fromInteger 1
 
 num :: (Integral b, Num a) => b -> a
 num = fromIntegral
@@ -28,7 +28,8 @@ prod (toList -> l)  = foldr1 (*) l
 
 class Num a => Max a where
   maxA :: a -> a -> a
-  maximumA ::(Foldable f, Max a) => f a -> a
+  
+  maximumA ::(Foldable f) => f a -> a
   maximumA (toList -> []) = zero
   maximumA (toList -> l)  = foldr1 maxA l
 

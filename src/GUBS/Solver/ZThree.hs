@@ -10,8 +10,8 @@ import           GUBS.Solver.Class
 import qualified GUBS.Solver.Formula          as F
 
 import           Control.Monad.State.Strict
-import           Data.Proxy
 import           Data.Maybe                   (fromJust)
+import           Data.Proxy
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import qualified Z3.Monad                     as Z

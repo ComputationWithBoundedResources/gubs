@@ -19,4 +19,4 @@ instance PP.Pretty a => PP.Pretty (Constraint a) where
 
 instance PrettySexp a => PrettySexp (Constraint a) where
   prettySexp (l :>=: r) = ppCall ">=" [prettySexp l, prettySexp r]
- 
+

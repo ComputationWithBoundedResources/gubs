@@ -20,12 +20,13 @@ import           System.Process.Typed
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Read                    hiding (Symbol, lift)
 
+import           GUBS.Algebra
 import qualified GUBS.Polynomial              as Poly
 import           GUBS.Solver.Class
 import           GUBS.Solver.Script
-import GUBS.Algebra
 
 -- import qualified Data.ByteString.Lazy.Char8 as BS (putStrLn)
+
 
 newtype Symbol  = Symbol Int deriving (Eq, Ord)
 

@@ -1,8 +1,9 @@
 module GUBS.Interpretation where
 
-import           Data.Maybe (fromMaybe)
-import           Data.List (foldl')
-import qualified Data.Map.Strict as M
+
+import           Data.List                    (foldl')
+import qualified Data.Map.Strict              as M
+import           Data.Maybe                   (fromMaybe)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 
@@ -25,7 +26,7 @@ get (Inter m) f i = M.lookup (f,i) m
 
 get' :: Ord f => Interpretation f i -> f -> Int -> i
 get' inter f i = fromMaybe err (get inter f i) where
-   err = error "GUBS.Interpretation: function symbol not found."  
+   err = error "GUBS.Interpretation: function symbol not found."
 
 insert :: Ord f => Interpretation f i -> f -> Int -> i -> Interpretation f i
 insert (Inter m) f i p = Inter (M.insert (f,i) p m)
@@ -37,7 +38,7 @@ union :: Ord f => Interpretation f i -> Interpretation f i -> Interpretation f i
 union (Inter m1) (Inter m2) = Inter (m1 `M.union` m2)
 
 unions :: Ord f => [Interpretation f i] -> Interpretation f i
-unions = foldl' union empty 
+unions = foldl' union empty
 
 restrict :: (f -> Int -> Bool) -> Interpretation f i -> Interpretation f i
 restrict p (Inter m) = Inter (M.filterWithKey (\(f,i) _ -> p f i) m)

@@ -16,14 +16,16 @@ module GUBS.MaxTerm (
   , interpretM
   ) where
 
-import Data.Foldable (toList)
-import           Data.List (nub)
-import           Data.String (IsString (..))
-import           Data.Functor.Identity (runIdentity)
+
+import           Data.Foldable                (toList)
+import           Data.Functor.Identity        (runIdentity)
+import           Data.List                    (nub)
+import           Data.String                  (IsString (..))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
 import           GUBS.Algebra
 import           GUBS.Utils
+
 
 data Term f v c
   = Var v
@@ -61,7 +63,7 @@ constant = Const
 
 instance IsString (Term f String c) where
   fromString = Var
-  
+
 -- instance Additive (Term f v) where
 --   zero = ZERO
 --   ZERO    .+ t2      = t2
@@ -100,8 +102,8 @@ argsDL (Fun _ ts)   = (++) ts . foldr ((.) . argsDL) id ts
 argsDL (Mult t1 t2) = (++) [t1,t2] . argsDL t1 . argsDL t2
 argsDL (Plus t1 t2) = (++) [t1,t2] . argsDL t1 . argsDL t2
 argsDL (Max t1 t2)  = (++) [t1,t2] . argsDL t1 . argsDL t2
-                       
-args :: Term f v c -> [Term f v c]       
+
+args :: Term f v c -> [Term f v c]
 args = flip argsDL []
 
 varsDL :: Term f v c -> [v] -> [v]
@@ -114,7 +116,7 @@ varsDL (Max t1 t2)  = varsDL t1 . varsDL t2
 
 vars :: Term f v c -> [v]
 vars = flip varsDL []
-        
+
 funsDL :: Term f v c -> [(f,Int)] -> [(f,Int)]
 funsDL Var {}       = id
 funsDL Const {}     = id
@@ -128,10 +130,10 @@ funs = nub . flip funsDL []
 
 definedSymbol :: Term f v c -> Maybe f
 definedSymbol (Fun f _) = Just f
-definedSymbol _ = Nothing              
+definedSymbol _ = Nothing
 
 coefficients :: Term f v c -> [c]
-coefficients = toList 
+coefficients = toList
 
 
 -- interpret
@@ -163,7 +165,7 @@ instance (PP.Pretty f, PP.Pretty v, PP.Pretty c) => PP.Pretty (Term f v c) where
     pp par (Plus t1 t2) = ppBin par "+" (pp PP.parens t1) (pp PP.parens t2)
     pp _   (Max t1 t2)  = PP.text "max" PP.<> PP.tupled [PP.pretty t1, PP.pretty t2]
 
-instance (PP.Pretty f, PP.Pretty v, PP.Pretty c) => PrettySexp (Term f v c) where 
+instance (PP.Pretty f, PP.Pretty v, PP.Pretty c) => PrettySexp (Term f v c) where
   prettySexp (Var v)      = ppCall "var" [PP.pretty v]
   prettySexp (Const i)    = PP.pretty i
   prettySexp (Fun f ts)   = ppSexp (PP.pretty f : [prettySexp ti | ti <- ts])

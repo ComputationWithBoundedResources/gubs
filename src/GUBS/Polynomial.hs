@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module GUBS.Polynomial where
 
+
 import           Data.Functor.Identity        (runIdentity)
 import           Data.List                    (foldl1')
 import qualified Data.Map.Merge.Strict        as M
@@ -11,7 +12,7 @@ import qualified Data.MultiSet                as MS
 import qualified Data.Set                     as S
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import GUBS.Algebra
+import           GUBS.Algebra
 
 
 newtype Monomial v = Mono (MultiSet v)

@@ -21,6 +21,7 @@ import           GUBS.Natural.Solve.SCC        as N
 import           GUBS.Natural.Solve.Simplify   as N
 import           GUBS.Natural.Strategy         as N
 
+
 data Answer f v c = Open (ConstraintSystem f v c) (Interpretation f c) | Sat (Interpretation f c) deriving (Show)
 
 
@@ -29,10 +30,10 @@ defaultProcessor smtSolver =
   withLog (try simplify) ==> try (exhaustive (logAs "SCC" (sccDecompose simple)))
   where
     withLog p cs = logOpenConstraints cs *> p cs <* logInterpretation cs <* logConstraints cs
-      -- logOpenConstraints cs *> p cs <* logInterpretation cs <* logConstraints cs
 
     logAs str p cs = logBlk (str++"...") (p cs)
     smtOpts = defaultSMTOpts { minimize = tryM (iterM 3 zeroOut) `andThenM` tryM (iterM 3 shiftMax) `andThenM` iterM 3 decreaseCoeffs }
+    -- smtOpts = defaultSMTOpts { minimize = noneM }
 
     simple =
       logAs "SOLVE" $ timed $ withLog $
@@ -59,7 +60,7 @@ solveWithLog cs p = toAnswer <$> run I.empty (p (nub cs)) where
   toAnswer (NoProgress,i,l)   = (Open cs i, l)
 
 
-solveWith :: (Eq f, Eq v, Eq c, Monad m) => 
+solveWith :: (Eq f, Eq v, Eq c, Monad m) =>
   ConstraintSystem f v c -> Processor f c v m -> m (Answer f v c)
 solveWith cs p = fst <$> solveWithLog cs p
 

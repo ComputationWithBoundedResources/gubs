@@ -3,27 +3,27 @@ module GUBS.Solver.MiniSMT (
   ) where
 
 
-import           Prelude hiding (lookup)
-import           Text.Read hiding (Symbol,lift)
+import           Prelude                      hiding (lookup)
+import           Text.Read                    hiding (Symbol, lift)
 
-import           Control.Applicative ((<|>))
-import qualified Control.Monad.State as St
-import           Control.Monad.Trans (MonadIO, liftIO)
-import qualified Data.ByteString.Builder as BS
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Maybe (fromMaybe, isJust)
-import           Data.Set (Set)
-import qualified Data.Set as Set
-import           System.IO (hClose, hFlush, hSetBinaryMode, stderr, hPutStrLn)
-import           System.IO.Temp (withSystemTempFile)
+import           Control.Applicative          ((<|>))
+import qualified Control.Monad.State          as St
+import           Control.Monad.Trans          (MonadIO, liftIO)
+import qualified Data.ByteString.Builder      as BS
+import           Data.Map.Strict              (Map)
+import qualified Data.Map.Strict              as Map
+import           Data.Maybe                   (fromMaybe, isJust)
+import           Data.Set                     (Set)
+import qualified Data.Set                     as Set
 import           System.Exit
+import           System.IO                    (hClose, hFlush, hPutStrLn, hSetBinaryMode, stderr)
+import           System.IO.Temp               (withSystemTempFile)
 import           System.Process
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+import           GUBS.Algebra
 import           GUBS.Solver.Class
 import           GUBS.Solver.Script
-import GUBS.Algebra
 
 
 data MiniSMT
@@ -33,35 +33,35 @@ data SymbolType = BoolType | NatType deriving (Eq,Ord)
 
 instance Show Symbol where
   show (Symbol i) = "v" ++ show i
-  
+
 instance Show SymbolType where
   show BoolType = "Bool"
-  show NatType = "Nat"  
+  show NatType = "Nat"
 
 type Assign = Map Symbol Q
 
 lookup :: Symbol -> Assign -> Q
 lookup s a = fromMaybe 0 (Map.lookup s a)
 
-data Frame = Frame 
+data Frame = Frame
   { fFreeVars    :: Set (Symbol,SymbolType)
   , fAssign      :: Maybe Assign
   , fConstraints :: [SMTFormula MiniSMT] }
 
-data SolverState = SolverState 
+data SolverState = SolverState
   { freshId    :: Int
   , curFrame   :: Frame
   , frameStack :: [Frame] }
 
 initialState :: SolverState
-initialState = SolverState 
+initialState = SolverState
   { freshId = 0
-  , curFrame = Frame Set.empty Nothing [] 
+  , curFrame = Frame Set.empty Nothing []
   , frameStack = [] }
-               
+
 assign :: SolverState -> Maybe Assign
 assign = fAssign . curFrame
-             
+
 freeVars :: SolverState -> [(Symbol, SymbolType)]
 freeVars = Set.toList . fFreeVars . curFrame
 
@@ -77,7 +77,7 @@ popFrame :: SolverState -> SolverState
 popFrame st =
   case frameStack st of
     [] -> error "MiniSMT: pop on empty stack"
-    f : fs -> st { curFrame = f { fAssign = fAssign (curFrame st) <|> fAssign f } , frameStack = fs }    
+    f : fs -> st { curFrame = f { fAssign = fAssign (curFrame st) <|> fAssign f } , frameStack = fs }
 
 addConstraint :: SMTFormula MiniSMT -> SolverState -> SolverState
 addConstraint c st@SolverState{..} =
@@ -98,7 +98,7 @@ toScript vs cs =
            | (v,tpe) <- vs]
   </> vsep [ assertBS d | d <- cs]
   </> app "check-sat" []
-    
+
 
 -- result parser
 ----------------------------------------------------------------------
@@ -106,10 +106,10 @@ toScript vs cs =
 parseOut :: String -> Maybe Assign
 parseOut out =
   case lines out of
-    "sat" : _ : ls -> Just $ 
+    "sat" : _ : ls -> Just $
       Map.fromList [ (case read var of NLit s -> s, readQ val)
                    | l <- ls
-                   , let (var,_:val) = break (== '=') (filter (/= ' ') l)]    
+                   , let (var,_:val) = break (== '=') (filter (/= ' ') l)]
     _ -> Nothing
 
 -- minismt wrapper
@@ -128,7 +128,7 @@ runMiniSMT vs cs = do
       ExitSuccess   -> return (parseOut out)
       -- where
       --   ppScript = PP.vcat . map PP.text . map ("   " ++) . lines . unpack . BS.toLazyByteString
-        
+
 -- SMTSolver instance
 ----------------------------------------------------------------------
 
@@ -143,16 +143,16 @@ freshSymbol tpe = do
 instance SMTSolver MiniSMT where
   data SolverM MiniSMT a = S (St.StateT SolverState IO a) deriving (Functor)
   data NLiteral MiniSMT = NLit Symbol deriving (Eq, Ord, Show)
-  data BLiteral MiniSMT = BLit Symbol deriving (Eq, Ord, Show)  
+  data BLiteral MiniSMT = BLit Symbol deriving (Eq, Ord, Show)
 
   freshBool = BLit <$> freshSymbol BoolType
-  freshNat = NLit <$> freshSymbol NatType  
-  
+  freshNat = NLit <$> freshSymbol NatType
+
   push = St.modify pushFrame
   pop = St.modify popFrame
-  assertFormula c = St.modify (addConstraint c) 
+  assertFormula c = St.modify (addConstraint c)
 
-  getValue (NLit s) = 
+  getValue (NLit s) =
     maybe (error "model not available") (lookup s) <$> assign <$> St.get
 
   checkSat = do
@@ -160,8 +160,8 @@ instance SMTSolver MiniSMT where
     ma <- S (runMiniSMT (freeVars st) (constraints st))
     St.modify (\ st' -> st' {curFrame = (curFrame st') {fAssign = ma} })
     return (isJust ma)
-    
-  
+
+
 instance Applicative (SolverM MiniSMT) where
   pure a = S (pure a)
   S a1 <*> S a2 = S (a1 <*> a2)

@@ -1,9 +1,10 @@
 module GUBS.Utils where
 
-import qualified System.IO as IO
+
+import qualified Control.Monad.Trace          as MTR
+import qualified Debug.Trace                  as TR
+import qualified System.IO                    as IO
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import qualified Debug.Trace as TR
-import qualified Control.Monad.Trace as MTR
 
 
 class PrettySexp a where

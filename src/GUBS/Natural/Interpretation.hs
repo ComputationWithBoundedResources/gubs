@@ -4,7 +4,7 @@ module GUBS.Natural.Interpretation
  , maxDegree
  , apply
  , interpret
- , pInterpret 
+ , pInterpret
  )
 where
 
