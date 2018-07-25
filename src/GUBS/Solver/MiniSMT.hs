@@ -29,14 +29,17 @@ import           GUBS.Solver.Script
 data MiniSMT
 
 newtype Symbol = Symbol Int deriving (Eq, Ord)
-data SymbolType = BoolType | NatType deriving (Eq,Ord)
+data SymbolType = BoolType | NatType | IntType | RatType | RealType deriving (Eq,Ord)
 
 instance Show Symbol where
   show (Symbol i) = "v" ++ show i
 
 instance Show SymbolType where
   show BoolType = "Bool"
-  show NatType = "Nat"
+  show NatType  = "Nat"
+  show IntType  = "Nat"
+  show RatType  = "Rat"
+  show RealType = "Real"
 
 type Assign = Map Symbol Q
 
@@ -146,7 +149,10 @@ instance SMTSolver MiniSMT where
   data BLiteral MiniSMT = BLit Symbol deriving (Eq, Ord, Show)
 
   freshBool = BLit <$> freshSymbol BoolType
-  freshNat = NLit <$> freshSymbol NatType
+  freshNat  = NLit <$> freshSymbol NatType
+  freshInt  = NLit <$> freshSymbol IntType
+  freshRat  = NLit <$> freshSymbol RatType
+  freshReal = NLit <$> freshSymbol RatType
 
   push = St.modify pushFrame
   pop = St.modify popFrame

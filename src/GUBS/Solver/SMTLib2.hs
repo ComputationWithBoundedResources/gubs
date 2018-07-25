@@ -21,7 +21,6 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Read                    hiding (Symbol, lift)
 
 import           GUBS.Algebra
-import qualified GUBS.Polynomial              as Poly
 import           GUBS.Solver.Class
 import           GUBS.Solver.Script
 
@@ -88,16 +87,36 @@ instance SMTSolver SMTLib2 where
   newtype BLiteral SMTLib2   = BLit Symbol deriving (Eq, Ord)
 
   freshBool = do
-    s <- freshSymbol
-    let v = BLit s
+    v <- BLit <$> freshSymbol
     send $ declareBoolBS v
     return v
 
   freshNat = do
-    s <- freshSymbol
-    let v = NLit s
+    v <- NLit <$> freshSymbol
     send $ declareIntBS v
-    send $ assertBS $ Atom $ Poly.variable v `Geq` Poly.coefficient 0
+    send $ app ">=" [ stringBS (show v), natBS 0 ]
+    return v
+
+  freshInt = do
+    v <- NLit <$> freshSymbol
+    send $ declareIntBS v
+    return v
+
+  freshRat = do
+    v <- NLit <$> freshSymbol
+    n <- NLit <$> freshSymbol
+    d <- NLit <$> freshSymbol
+    send $ declareRealBS v
+    send $ declareIntBS n
+    send $ declareIntBS d
+    send $ 
+      app "assert" 
+        [ app "=" [ stringBS (show v), app "/" $ (stringBS . show) <$> [n,d] ] ]
+    return v
+
+  freshReal = do
+    v <- NLit <$> freshSymbol
+    send $ declareRealBS v
     return v
 
   push            = send $ app "push" []

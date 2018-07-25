@@ -39,14 +39,13 @@ class (Monad (SolverM s), Ord (NLiteral s)) => SMTSolver s where
 
   freshBool :: SolverM s (BLiteral s)
   freshNat  :: SolverM s (NLiteral s)
-  -- freshNat :: SolverM s (QLiteral s)
-  -- freshNat = do
-  --   v <- freshInt
-  --   assert $ Atom $ Poly.variable v `Geq` Poly.coefficient zero
-  --   return v
-  -- freshInt  :: SolverM s (QLiteral s)
-  -- freshReal :: SolverM s (QLiteral s)
-  -- freshRat  :: SolverM s (QLiteral s)
+  freshNat = do
+    v <- freshInt
+    assert $ F.Atom $ Poly.variable v `F.Geq` Poly.coefficient zero
+    return v
+  freshInt  :: SolverM s (NLiteral s)
+  freshReal :: SolverM s (NLiteral s)
+  freshRat  :: SolverM s (NLiteral s)
 
   push :: SolverM s ()
   pop  :: SolverM s ()

@@ -67,11 +67,17 @@ exitBS = app "exit" []
 declareFunBS :: Show a => a -> String -> BS.Builder
 declareFunBS v t = app "declare-fun" [stringBS (show v), sexpr [], stringBS t]
 
+declareBoolBS :: Show (BLiteral s) => BLiteral s -> BS.Builder
+declareBoolBS v = declareFunBS v "Bool"
+
 declareIntBS :: Show (NLiteral s) => NLiteral s -> BS.Builder
 declareIntBS v = declareFunBS v "Int"
 
-declareBoolBS :: Show (BLiteral s) => BLiteral s -> BS.Builder
-declareBoolBS v = declareFunBS v "Bool"
+declareRatBS :: Show (NLiteral s) => NLiteral s -> BS.Builder
+declareRatBS v = declareFunBS v "Rat"
+
+declareRealBS :: Show (NLiteral s) => NLiteral s -> BS.Builder
+declareRealBS v = declareFunBS v "Real"
 
 assertBS :: (Show (BLiteral s), Show (NLiteral s)) => SMTFormula s -> BS.Builder
 assertBS f                      = app "assert" [formToBS f] where
