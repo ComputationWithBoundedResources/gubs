@@ -13,21 +13,25 @@ module GUBS.Strategy (
   , abort
   , try
   , exhaustive
-
   , getInterpretation
   , modifyInterpretation
   , timed
   , timeout
+  , Answer (..)
+  , interpretation
+  , solveWith
+  , solveWithLog
   ) where
 
 
 import           Control.Monad.State
 import           Control.Monad.Trace
 import           Data.Time
-import           Data.Tree           (Forest)
-import qualified System.Timeout      as Timeout
+import           Data.Tree                    (Forest)
+import qualified System.Timeout               as Timeout
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-import           GUBS.Interpretation hiding (get)
+import           GUBS.Interpretation          hiding (get)
 import           GUBS.Utils
 
 type ExecutionLog = Forest String
@@ -110,4 +114,27 @@ p1 ==> p2 = \cs -> do
 exhaustive :: (Foldable t, Monad m) => Processor f i (t cs) m -> Processor f i (t cs) m
 exhaustive p = p ==> try (exhaustive p)
 
+
+-- Answer
+
+data Answer f i cs = Open cs (Interpretation f i) | Sat (Interpretation f i) deriving (Show)
+
+
+solveWithLog :: (Monad m, Foldable t) =>  t cs -> Processor f i (t cs) m -> m (Answer f i (t cs), ExecutionLog)
+solveWithLog cs0 p = toAnswer <$> run empty (p cs0) where
+  toAnswer (Progress cs1,i,l)
+    | null cs1              = (Sat i, l)
+    | otherwise             = (Open cs1 i, l)
+  toAnswer (NoProgress,i,l) = (Open cs0 i, l)
+
+solveWith :: (Monad m, Foldable t) =>  t cs -> Processor f i (t cs) m -> m (Answer f i (t cs))
+solveWith cs p = fst <$> solveWithLog cs p
+
+interpretation :: Answer f i cs -> Maybe (Interpretation f i)
+interpretation (Sat i) = Just i
+interpretation _       = Nothing
+
+instance (PP.Pretty f, PP.Pretty i, PP.Pretty cs) => PP.Pretty (Answer f i cs) where
+  pretty (Sat i)     = PP.text "SUCCESS" PP.<$$> PP.pretty i
+  pretty (Open cs i) = PP.text "OPEN"    PP.<$$> PP.pretty cs PP.<$$> PP.pretty i
 
