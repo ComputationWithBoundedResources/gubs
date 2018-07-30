@@ -58,6 +58,9 @@ app f es = sexpr (stringBS f : es)
 
 -- smtlib2-command
 
+qfniraBS :: BS.Builder
+qfniraBS =app "set-logic" [stringBS "QF_NIRA"]
+
 qfniaBS :: BS.Builder
 qfniaBS =app "set-logic" [stringBS "QF_NIA"]
 
@@ -103,7 +106,7 @@ assertBS f                      = app "assert" [formToBS f] where
     mul 1 as     = app "*" as
     mul c as     = app "*" (qBS c : as)
 
-    polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms ]
+    polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms, c /= fromInteger 0 ]
     monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate ex (stringBS (show v)) | (v,ex) <- ps ])
 
 checkSatBS :: BS.Builder

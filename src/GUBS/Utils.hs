@@ -5,6 +5,7 @@ import qualified Control.Monad.Trace          as MTR
 import qualified Debug.Trace                  as TR
 import qualified System.IO                    as IO
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import Data.Tree (Forest, Tree(..), drawTree)
 
 
 class PrettySexp a where
@@ -30,6 +31,12 @@ putDocLn = hPutDocLn IO.stdout
 
 putDocErrLn :: PP.Pretty e => e -> IO ()
 putDocErrLn = hPutDocLn IO.stderr
+
+renderLog :: Forest String -> PP.Doc
+renderLog = PP.text . drawTree . Node "ExecutionLog"
+
+putLog :: Forest String -> IO ()
+putLog = putDocErrLn . renderLog
 
 
 tracePretty :: PP.Pretty e => String -> e -> e

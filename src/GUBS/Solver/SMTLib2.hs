@@ -6,7 +6,8 @@
 --
 -- MS: This module should replace Gubs.Solver.SMTLib and the remove the dependency to the smtlib2 package.
 module GUBS.Solver.SMTLib2 (
-  runSMTLib2
+  SMTLib2
+  , runSMTLib2
   ) where
 
 
@@ -24,7 +25,7 @@ import           GUBS.Algebra
 import           GUBS.Solver.Class
 import           GUBS.Solver.Script
 
--- import qualified Data.ByteString.Lazy.Char8 as BS (putStrLn)
+import qualified Data.ByteString.Lazy.Char8 as BS (putStrLn)
 
 
 newtype Symbol  = Symbol Int deriving (Eq, Ord)
@@ -35,7 +36,7 @@ data SolverState = SolverState
   , outHandle :: Handle }
 
 runSMTLib2 :: String -> [String] -> SolverM SMTLib2 a -> IO a
-runSMTLib2 cmd args m' = go (send qfniaBS *> m' <* send exitBS) where
+runSMTLib2 cmd args m' = go (send qfniraBS *> m' <* send exitBS) where
   go (SMTLib2 m) =
     let cfg = setStdin createPipe $ setStdout createPipe $ setStderr createPipe $ proc cmd args in
     withProcess cfg  $ \p -> do
@@ -55,7 +56,7 @@ runSMTLib2 cmd args m' = go (send qfniaBS *> m' <* send exitBS) where
 
 send :: BS.Builder -> SolverM SMTLib2 ()
 send msg = St.gets inHandle >>= \inh -> liftIO $ do
-  -- BS.putStrLn (BS.toLazyByteString msg) -- print script on stdout
+  BS.putStrLn (BS.toLazyByteString msg) -- print script on stdout
   BS.hPutBuilder inh msg
   BS.hPutBuilder inh (charBS '\n')
   hFlush inh
