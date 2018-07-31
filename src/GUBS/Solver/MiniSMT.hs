@@ -1,5 +1,6 @@
 module GUBS.Solver.MiniSMT (
-  miniSMT
+  MiniSMT
+  , miniSMT
   ) where
 
 
