@@ -125,7 +125,7 @@ instance SMTSolver SMTLib2 where
   assertFormula c = send $ assertBS c
 
   getValue l = parseValue <$> ask (getValueBS l)
-    where parseValue = readQ . takeWhile (/= ')') . tail . dropWhile (/= ' ')
+    where parseValue = readAssignment
 
   checkSat = (== "sat") <$> ask checkSatBS
 

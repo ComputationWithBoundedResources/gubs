@@ -5,12 +5,12 @@ module GUBS.Algebra where
 import           Control.Monad                   (guard)
 import           Data.Foldable                   (toList)
 import           Data.Ratio                      (Ratio)
-import qualified Data.Ratio                      as R (denominator, numerator,
-                                                       (%))
-import           Text.ParserCombinators.ReadP    (skipSpaces)
+import qualified Data.Ratio                      as R (denominator, numerator, (%))
+import           Text.ParserCombinators.ReadP    (char)
 import           Text.ParserCombinators.ReadPrec
 import qualified Text.PrettyPrint.ANSI.Leijen    as PP
 import           Text.Read
+import           Text.Read.Lex
 
 
 zero, one :: Num a => a
@@ -28,13 +28,14 @@ prod (toList -> l)  = foldr1 (*) l
 
 class Num a => Max a where
   maxA :: a -> a -> a
-  
+
   maximumA ::(Foldable f) => f a -> a
   maximumA (toList -> []) = zero
   maximumA (toList -> l)  = foldr1 maxA l
 
 instance Max Integer where
   maxA = max
+
 
 -- Q
 
@@ -63,29 +64,42 @@ showQ q
     n = numerator q
     d = denominator q
 
-readQ :: String -> Q
-readQ = either error id . readE
+-- read assignment (ident number)
+readAssignment :: String -> Q
+readAssignment = either error id . readEither' readPrec'
+  where readPrec' = parens (lexP *> readPrecQ)
 
-readE :: String -> Either String Q
-readE s =
-  case [ x | (x,"") <- readPrec_to_S readPrec' minPrec s ] of
+readQ :: String -> Q
+readQ = either error id . readEither' readPrecQ
+
+readPrecQ  :: ReadPrec Q
+readPrecQ = readInteger +++ readDouble +++ readRational +++ parens (readRat) where
+  number     = do
+    l <- lexP
+    case l of
+      Number n -> return $ numberToRational n
+      _        -> pfail
+
+
+  readInteger  = fromInteger <$> (readPrec :: ReadPrec Integer)
+  readRational = Q           <$> (readPrec :: ReadPrec Rational)
+  readDouble   = toRat       <$> (readPrec :: ReadPrec Double)
+  readRat      = do
+    _ <- lift (char '/')
+    n <-  number
+    guard (R.denominator n == 1)
+    d <- number
+    guard (R.denominator d == 1)
+    return $ R.numerator n % R.numerator d
+
+
+readEither' :: Show a => ReadPrec a -> String -> Either String a
+readEither' a s =
+  case [ x | (x,"") <- readPrec_to_S a minPrec s ] of
       [x] -> Right x
-      []  -> Left "Prelude.read: no parse"
-      _   -> Left "Prelude.read: ambiguous parse"
+      []  -> Left $ "Prelude.read: no parse: " ++  s
+      xs  -> Left $ "Prelude.read: ambiguous parse:" ++ s ++ ":" ++ show xs
   where
-  readPrec' = readRat <++ readInteger <++ readRatio <++ readDouble <++ pfail where
-    readInteger = fromInteger <$> (readPrec :: ReadPrec Integer)
-    readDouble  = toRat       <$> (readPrec :: ReadPrec Double)
-    readRat     = do
-      k <- get
-      guard $ k == '/'
-      whitespace
-      n <- readPrec :: ReadPrec Integer
-      whitespace
-      d <- readPrec :: ReadPrec Integer
-      return $ n % d
-    whitespace = lift skipSpaces
-    readRatio   = Q <$> (readPrec :: ReadPrec (Ratio Integer))
 
 instance PP.Pretty Q where
   pretty = PP.text . showQ
