@@ -56,7 +56,7 @@ runSMTLib2 cmd args m' = go (send qfniraBS *> m' <* send exitBS) where
 
 send :: BS.Builder -> SolverM SMTLib2 ()
 send msg = St.gets inHandle >>= \inh -> liftIO $ do
-  BS.putStrLn (BS.toLazyByteString msg) -- print script on stdout
+  -- BS.putStrLn (BS.toLazyByteString msg) -- print script on stdout
   BS.hPutBuilder inh msg
   BS.hPutBuilder inh (charBS '\n')
   hFlush inh

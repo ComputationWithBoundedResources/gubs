@@ -73,15 +73,14 @@ readQ :: String -> Q
 readQ = either error id . readEither' readPrecQ
 
 readPrecQ  :: ReadPrec Q
-readPrecQ = readInteger +++ readDouble +++ readRational +++ parens (readRat) where
+readPrecQ = readDouble +++ readRational +++ parens (readRat) where
   number     = do
     l <- lexP
     case l of
       Number n -> return $ numberToRational n
       _        -> pfail
 
-
-  readInteger  = fromInteger <$> (readPrec :: ReadPrec Integer)
+  -- readInteger  = fromInteger <$> (readPrec :: ReadPrec Integer)
   readRational = Q           <$> (readPrec :: ReadPrec Rational)
   readDouble   = toRat       <$> (readPrec :: ReadPrec Double)
   readRat      = do
