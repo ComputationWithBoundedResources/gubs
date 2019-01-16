@@ -8,6 +8,7 @@
 module GUBS.Solver.SMTLib2 (
   SMTLib2
   , runSMTLib2
+  , runSMTLib2Using
   ) where
 
 
@@ -36,7 +37,10 @@ data SolverState = SolverState
   , outHandle :: Handle }
 
 runSMTLib2 :: String -> [String] -> SolverM SMTLib2 a -> IO a
-runSMTLib2 cmd args m' = go (send qfniraBS *> m' <* send exitBS) where
+runSMTLib2 = runSMTLib2Using "QF_NIRA"
+
+runSMTLib2Using :: String -> String -> [String] -> SolverM SMTLib2 a -> IO a
+runSMTLib2Using logic cmd args m' = go (send (setLogicBS logic) *> m' <* send exitBS) where
   go (SMTLib2 m) =
     let cfg = setStdin createPipe $ setStdout createPipe $ setStderr createPipe $ proc cmd args in
     withProcess cfg  $ \p -> do
@@ -120,8 +124,9 @@ instance SMTSolver SMTLib2 where
     send $ declareRealBS v
     return v
 
-  push            = send $ app "push" []
-  pop             = send $ app "pop" [natBS 1]
+  -- use yices2/z3 as reference; yices2 requires '(push nat)'
+  push            = send $ app "push" [natBS 1]
+  pop             = send $ app "pop"  [natBS 1]
   assertFormula c = send $ assertBS c
 
   getValue l = parseValue <$> ask (getValueBS l)

@@ -58,11 +58,8 @@ app f es = sexpr (stringBS f : es)
 
 -- smtlib2-command
 
-qfniraBS :: BS.Builder
-qfniraBS =app "set-logic" [stringBS "QF_NIRA"]
-
-qfniaBS :: BS.Builder
-qfniaBS =app "set-logic" [stringBS "QF_NIA"]
+setLogicBS :: String -> BS.Builder
+setLogicBS s = app "set-logic" [stringBS s]
 
 exitBS :: BS.Builder
 exitBS = app "exit" []
