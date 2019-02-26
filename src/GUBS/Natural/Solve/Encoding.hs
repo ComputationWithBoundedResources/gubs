@@ -3,6 +3,7 @@ module GUBS.Natural.Solve.Encoding
   -- * options
   , SMTSolver (..)
   , PolyShape (..)
+  , Domain (..)
   , SMTOpts (..)
   , Solver (..)
   , defaultSMTOpts
@@ -97,17 +98,21 @@ exhaustiveM s = s `andThenM` tryM (exhaustiveM s)
 noneM :: SMTMinimization
 noneM = Success
 
-data SMTOpts f =
-  SMTOpts { shape    :: PolyShape f
-          , degree   :: Int
-          , maxCoeff :: Maybe Int
-          , maxConst :: Maybe Int
-          , maxPoly  :: Bool
-          , minimize :: SMTMinimization }
+data Domain = Nat | Rat
+
+data SMTOpts f = SMTOpts
+  { domain   :: Domain
+  , shape    :: PolyShape f
+  , degree   :: Int
+  , maxCoeff :: Maybe Int
+  , maxConst :: Maybe Int
+  , maxPoly  :: Bool
+  , minimize :: SMTMinimization }
 
 defaultSMTOpts :: SMTOpts f
 defaultSMTOpts =
-  SMTOpts { shape = MultMixed
+  SMTOpts { domain = Nat
+          , shape = MultMixed
           , degree = 2
           , maxCoeff = Nothing
           , maxConst = Nothing
@@ -126,12 +131,17 @@ type SMT s f a = StateT (SMTOpts f, Interpretation f Q,AbstractInterpretation s 
 liftSMT :: SMTSolver s => SolverM s a -> SMT s f a
 liftSMT = lift . lift
 
+
 freshCoeff :: SMTSolver s => Maybe Int -> Maybe Int -> SMT s f (AbstractCoefficient s)
-freshCoeff mlb mub = liftSMT $ do
-  v <- P.variable <$> freshNat
-  whenJust mlb $ \ lb -> assert (v               `smtGeq` fromIntegral lb)
-  whenJust mub $ \ ub -> assert (fromIntegral ub `smtGeq` v)
-  return v
+freshCoeff mlb mub = do
+  dom <- domain <$> getOpts
+  liftSMT $ do
+    v <- P.variable <$> case dom of
+      Nat -> freshNat
+      Rat -> freshReal
+    whenJust mlb $ \ lb -> assert (v               `smtGeq` fromIntegral lb)
+    whenJust mub $ \ ub -> assert (fromIntegral ub `smtGeq` v)
+    return v
 
 getOpts :: SMTSolver s => SMT s f (SMTOpts f)
 getOpts = do (opts,_,_) <- get; return opts

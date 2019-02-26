@@ -10,6 +10,7 @@ import           System.IO
 import           Text.Parsec
 import           Text.ParserCombinators.Parsec (CharParser)
 import qualified Text.PrettyPrint.ANSI.Leijen  as PP
+import qualified Data.Ratio as R
 
 import           GUBS.Algebra
 import qualified GUBS.MaxTerm                  as T
@@ -95,13 +96,18 @@ literal s = void (lexeme (string s))
 identifier :: Parser String
 identifier = lexeme (many1 (try alphaNum <|> oneOf "'_/#?*+-!:@[]"))
 
-natural :: Parser Int
-natural = lexeme (foldl' (\a i -> a * 10 + digitToInt i) 0 <$> many1 digit)
+natural :: Parser Integer
+natural = fromIntegral <$> lexeme (foldl' (\a i -> a * 10 + digitToInt i) 0 <$> many1 digit)
+
+rational :: Parser R.Rational
+rational = parens $ literal "/" *> ((R.%) <$> natural <*> natural)
 
 term :: Parser (T.Term Symbol Variable Q)
 term = try constant <|> parens (try var <|> compound) where
   var = literal "var" >> (T.Var . Variable <$> identifier)
-  constant = fromIntegral <$> natural
+  nat = T.constant . toRat <$> natural
+  rat = T.constant . toRat <$> rational
+  constant = nat <|> rat
   compound = join (toTerm <$> identifier <*> many (lexeme term))
   toTerm f ts | f `notElem` ["*","+","max"] = return (T.Fun (Symbol f) ts)
   toTerm "*" ts  = return (prod ts)

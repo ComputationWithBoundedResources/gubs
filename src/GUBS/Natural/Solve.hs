@@ -22,7 +22,8 @@ defaultProcessor smtSolver =
     withLog p cs = logOpenConstraints cs *> p cs <* logInterpretation cs <* logConstraints cs
 
     logAs str p cs = logBlk (str++"...") (p cs)
-    smtOpts = defaultSMTOpts { minimize = tryM (iterM 3 zeroOut) `andThenM` tryM (iterM 3 shiftMax) `andThenM` iterM 3 decreaseCoeffs }
+    smtOpts = defaultSMTOpts { domain = Rat, minimize = tryM (iterM 3 zeroOut) `andThenM` tryM (iterM 3 shiftMax) `andThenM` iterM 3 decreaseCoeffs }
+    -- smtOpts = defaultSMTOpts { minimize = tryM (iterM 3 zeroOut) `andThenM` tryM (iterM 3 shiftMax) `andThenM` iterM 3 decreaseCoeffs }
     -- smtOpts = defaultSMTOpts { minimize = noneM }
 
     simple =
