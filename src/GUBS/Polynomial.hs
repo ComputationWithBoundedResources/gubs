@@ -74,8 +74,8 @@ coefficients (Poly ms) = M.elems ms
 variables :: Ord v => Polynomial v c -> [v]
 variables p = S.toAscList (S.unions [ MS.toSet m | (_,Mono m) <- toMonos p ])
 
-rename :: Ord v' => (v -> v') -> Polynomial v c -> Polynomial v' c
-rename f (Poly ms) = Poly (M.mapKeys (\ (Mono m) -> Mono (MS.map f m)) ms)
+rename :: (Eq c, Num c, Ord v') => (v -> v') -> Polynomial v c -> Polynomial v' c
+rename f (Poly ms) = norm $ Poly (M.mapKeysWith (+) (\ (Mono m) -> Mono (MS.map f m)) ms)
 
 norm :: (Num c, Eq c) => Polynomial v c -> Polynomial v c
 norm (Poly ms) = Poly (M.filter (zero /=) ms)
@@ -189,4 +189,3 @@ instance Num c => Num (Diff c) where
 minus :: (Ord v,  Num c) => Polynomial v c -> Polynomial v c -> DiffPolynomial v c
 minus p1 p2 = fmap k p1 - fmap k p2
   where k c =  Diff { posAC = c, negAC = zero }
-
