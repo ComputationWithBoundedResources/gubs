@@ -215,7 +215,7 @@ interpret = T.interpretM (pure . MP.variable) i (pure . MP.Const . P.coefficient
         modify (\ (opts,inter,ainter) -> (opts,inter,I.insert ainter f ar p))
         return p
 
-maxElim :: (Ord v, Num c) => Constraint (MP.MaxPoly v c) -> Formula l (P.Polynomial v c)
+maxElim :: (Eq c, Ord v, Num c) => Constraint (MP.MaxPoly v c) -> Formula l (P.Polynomial v c)
 maxElim = smtBigAnd . map elimLhs . elimRhs
   where
     elimRhs (l :>=: r) = [ (l,r') | r' <- MP.splitMax r ]
@@ -385,4 +385,3 @@ smt solver opts cs = do
   case mi of
     Nothing     -> return NoProgress
     Just inter' -> modifyInterpretation (I.union inter') >> return (Progress [])
-

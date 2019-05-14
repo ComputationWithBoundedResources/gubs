@@ -46,8 +46,8 @@ Mono m1 `monoIsFactorOf` Mono m2 = m1 `MS.isSubsetOf` m2
 unit :: Polynomial c v
 unit = Poly M.empty
 
-coefficient :: c -> Polynomial v c
-coefficient c = Poly (M.singleton (Mono MS.empty) c)
+coefficient :: (Eq c, Num c) => c -> Polynomial v c
+coefficient c = norm (Poly (M.singleton (Mono MS.empty) c))
 
 variable :: Num c => v -> Polynomial v c
 variable v = Poly (M.singleton (Mono (MS.singleton v)) one)
@@ -86,9 +86,9 @@ isZero p = and [ c == zero || null (toPowers m) | (c,m) <- toMonos p ]
 zeroPoly :: Polynomial v c
 zeroPoly = Poly (M.empty)
 
-instance (Ord v, Num c) => Num (Polynomial v c) where
-  Poly ms1 + Poly ms2 = Poly (M.unionWith (+) ms1 ms2)
-  Poly ms1 * Poly ms2 = Poly (M.fromListWith (+) ms) where
+instance (Eq c, Ord v, Num c) => Num (Polynomial v c) where
+  Poly ms1 + Poly ms2 = norm $ Poly (M.unionWith (+) ms1 ms2)
+  Poly ms1 * Poly ms2 = norm $ Poly (M.fromListWith (+) ms) where
     ms =
       [ (Mono (m1 `MS.union` m2), c1 * c2)
       | (Mono m1,                 c1) <- M.toList ms1
@@ -102,7 +102,7 @@ instance (Ord v, Num c) => Num (Polynomial v c) where
 
 -- eval
 
-substitute :: (Num c, Ord v') => (v -> Polynomial v' c) -> Polynomial v c -> Polynomial v' c
+substitute :: (Eq c, Num c, Ord v') => (v -> Polynomial v' c) -> Polynomial v c -> Polynomial v' c
 substitute s = substPoly where
     substPoly p = sumA [ coefficient c * substMono m | (c,m) <- toMonos p]
     substMono m = prod [ prod $ replicate p (s v)     | (v,p) <- toPowers m]
@@ -162,20 +162,21 @@ ppPower (v,i) = PP.pretty v PP.<> if i == 1 then PP.empty else PP.char '^' PP.<>
 instance PP.Pretty v => PP.Pretty (Monomial v) where
   pretty mono = pretty' (toPowers mono) where
     pretty' [] = PP.char '1'
-    pretty' ps = PP.hcat (PP.punctuate (PP.char '*') [ppPower p | p <- ps])
+    pretty' ps = PP.hcat (PP.punctuate (PP.char '·') [ppPower p | p <- ps])
 
 instance (Num c, Eq c, PP.Pretty c, PP.Pretty v) => PP.Pretty (Polynomial v c) where
-  pretty poly = pretty' [ p | p <- toMonos (norm poly) ] where
+  pretty poly = pretty' (toMonos poly) where
     pretty' [] = PP.char '0'
     pretty' ps = PP.hcat (PP.punctuate (PP.string " + ") (ppMono `map` ps))
-    ppMono (c,mono) | c == one = PP.pretty mono
-    ppMono (c,toPowers -> [])  = PP.pretty c
-    ppMono (c,mono)            = PP.pretty c PP.<> PP.char '*' PP.<> PP.pretty mono
+    ppMono (c,mono) | c == one        = PP.pretty mono
+    ppMono (c,mono) | c == negate one = PP.pretty "-" PP.<> PP.pretty mono
+    ppMono (c,toPowers -> [])         = PP.pretty c
+    ppMono (c,mono)                   = PP.pretty c PP.<> PP.char '·' PP.<> PP.parens (PP.pretty mono)
 
 
 -- Difference Polynomial
 
-data Diff c = Diff { posAC :: c , negAC :: c }
+data Diff c = Diff { posAC :: c , negAC :: c } deriving Eq
 type DiffPolynomial v c = Polynomial v (Diff c)
 
 instance Num c => Num (Diff c) where
@@ -186,6 +187,6 @@ instance Num c => Num (Diff c) where
   abs           = error "Polynomial.Num.abs: not defined."
   signum        = error "Polynomial.Num.signum: not defined."
 
-minus :: (Ord v,  Num c) => Polynomial v c -> Polynomial v c -> DiffPolynomial v c
+minus :: (Eq c, Ord v,  Num c) => Polynomial v c -> Polynomial v c -> DiffPolynomial v c
 minus p1 p2 = fmap k p1 - fmap k p2
   where k c =  Diff { posAC = c, negAC = zero }

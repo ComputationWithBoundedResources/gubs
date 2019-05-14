@@ -64,7 +64,7 @@ substitute s = fromMaxPoly s Const
 
 -- max elimination
 
-splitMax :: (Ord v, Num c) =>  MaxPoly v c -> [P.Polynomial v c]
+splitMax :: (Eq c, Ord v, Num c) =>  MaxPoly v c -> [P.Polynomial v c]
 splitMax (Var v)    = [P.variable v]
 splitMax (Const c)  = [P.coefficient c]
 splitMax (Plus p q) = (+) <$> splitMax p <*> splitMax q
