@@ -35,7 +35,7 @@ import qualified GUBS.MaxPolynomial            as MP
 import           GUBS.MaxTerm                  (Term (..))
 import qualified GUBS.MaxTerm                  as T
 import qualified GUBS.Polynomial               as P
-import           GUBS.Solver
+import           GUBS.Solver                   hiding (minimize)
 import qualified GUBS.Solver.Formula           as F
 import           GUBS.Utils
 

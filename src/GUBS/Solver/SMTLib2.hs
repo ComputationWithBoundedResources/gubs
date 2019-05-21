@@ -134,6 +134,13 @@ instance SMTSolver SMTLib2 where
 
   checkSat = (== "sat") <$> ask checkSatBS
 
+-- MS: added for 'OptiMathSat'
+-- http://optimathsat.disi.unitn.it/
+-- probably fails with other solvers
+instance OptSMTSolver SMTLib2 where
+  minimize e = send $ app "minimize" [expressionBS e]
+  maximize e = send $ app "maximize" [expressionBS e]
+
 instance Show (NLiteral SMTLib2) where
   show (NLit (Symbol i)) = 'n': show i
 

@@ -79,32 +79,37 @@ declareRatBS v = declareFunBS v "Rat"
 declareRealBS :: Show (NLiteral s) => NLiteral s -> BS.Builder
 declareRealBS v = declareFunBS v "Real"
 
+expressionBS :: Show a => Poly.Polynomial a Q -> BS.Builder
+expressionBS e = polyToBS e where
+  add []       = qBS 0
+  add [a]      = a
+  add as       = app "+" as
+  mul 0 _      = qBS 0
+  mul c []     = qBS c
+  mul 1 [a]    = a
+  mul (-1) [a] = app "-" [a]
+  mul 1 as     = app "*" as
+  mul c as     = app "*" (qBS c : as)
+
+  polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms, c /= fromInteger 0 ]
+  monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate ex (stringBS (show v)) | (v,ex) <- ps ])
+
+formulaBS :: (Show (BLiteral s), Show (NLiteral s)) => SMTFormula s -> BS.Builder
+formulaBS = go where
+  go Top                  = stringBS "true"
+  go Bot                  = stringBS "false"
+  go (Lit (BoolLit l))    = stringBS (show l)
+  go (Lit (NegBoolLit l)) = app "not" [stringBS (show l)]
+  go (Atom (Eq e1 e2))    = app "=" [ expressionBS e1, expressionBS e2 ]
+  go (Atom (Geq e1 e2))   = app ">=" [ expressionBS e1, expressionBS e2 ]
+  go (And f1 f2)          = app "and" [ go f1, go f2 ]
+  go (Or f1 f2)           = app "or" [ go f1, go f2 ]
+  go Iff{}                = error "SmtLib2.assert: Iff not defined"
+  go LetB{}               = error "SmtLib2.assert: Iff not defined"
+
+
 assertBS :: (Show (BLiteral s), Show (NLiteral s)) => SMTFormula s -> BS.Builder
-assertBS f                      = app "assert" [formToBS f] where
-  formToBS Top                  = stringBS "true"
-  formToBS Bot                  = stringBS "false"
-  formToBS (Lit (BoolLit l))    = stringBS (show l)
-  formToBS (Lit (NegBoolLit l)) = app "not" [stringBS (show l)]
-  formToBS (Atom (Eq e1 e2))    = app "=" [ expressionToBS e1, expressionToBS e2 ]
-  formToBS (Atom (Geq e1 e2))   = app ">=" [ expressionToBS e1, expressionToBS e2 ]
-  formToBS (And f1 f2)          = app "and" [ formToBS f1, formToBS f2 ]
-  formToBS (Or f1 f2)           = app "or" [ formToBS f1, formToBS f2 ]
-  formToBS Iff{}                = error "SmtLib2.assert: Iff not defined"
-  formToBS LetB{}               = error "SmtLib2.assert: Iff not defined"
-
-  expressionToBS e = polyToBS e where
-    add []       = qBS 0
-    add [a]      = a
-    add as       = app "+" as
-    mul 0 _      = qBS 0
-    mul c []     = qBS c
-    mul 1 [a]    = a
-    mul (-1) [a] = app "-" [a]
-    mul 1 as     = app "*" as
-    mul c as     = app "*" (qBS c : as)
-
-    polyToBS (Poly.toMonos -> ms)    = add [ monoToBS c m | (c,m) <- ms, c /= fromInteger 0 ]
-    monoToBS c (Poly.toPowers -> ps) = mul c (concat [ replicate ex (stringBS (show v)) | (v,ex) <- ps ])
+assertBS f = app "assert" [formulaBS f] where
 
 checkSatBS :: BS.Builder
 checkSatBS = app "check-sat" []
