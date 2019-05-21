@@ -18,8 +18,6 @@ module GUBS.Solver.Class (
   , F.smtBigAnd
   , F.smtAll
   , F.smtAny
-  -- extension with optimisation
-  , OptSMTSolver (..)
   ) where
 
 
@@ -78,9 +76,4 @@ stack m = push *> m <* pop
 
 evalM :: SMTSolver s => SMTExpression s -> SolverM s Q
 evalM = Poly.evalWithM getValue
-
-
-class SMTSolver s => OptSMTSolver s where
-  minimize :: SMTExpression s -> SolverM s ()
-  maximize :: SMTExpression s -> SolverM s ()
 

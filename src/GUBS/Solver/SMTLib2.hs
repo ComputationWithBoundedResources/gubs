@@ -9,6 +9,12 @@ module GUBS.Solver.SMTLib2 (
   SMTLib2
   , runSMTLib2
   , runSMTLib2Using
+  -- * low level commandds
+  -- sometimes it is useful issue tool specific commands 
+  , send, receive
+  , sendExpressions
+  , sendFormulas
+  , sendCommand
   ) where
 
 
@@ -26,7 +32,7 @@ import           GUBS.Algebra
 import           GUBS.Solver.Class
 import           GUBS.Solver.Script
 
-import qualified Data.ByteString.Lazy.Char8 as BS (putStrLn)
+import qualified Data.ByteString.Lazy.Char8 as BS (pack,putStrLn)
 
 
 newtype Symbol  = Symbol Int deriving (Eq, Ord)
@@ -83,6 +89,15 @@ freshSymbol = do
   return sym
 
 
+sendFormulas :: String -> [SMTFormula SMTLib2] -> SolverM SMTLib2 ()
+sendFormulas cmd = send . app cmd . map formulaBS
+
+sendExpressions :: String -> [SMTExpression SMTLib2] -> SolverM SMTLib2 ()
+sendExpressions cmd = send . app cmd . map expressionBS
+
+sendCommand :: String -> SolverM SMTLib2 ()
+sendCommand = send . stringBS
+
 data SMTLib2
 
 instance SMTSolver SMTLib2 where
@@ -134,12 +149,6 @@ instance SMTSolver SMTLib2 where
 
   checkSat = (== "sat") <$> ask checkSatBS
 
--- MS: added for 'OptiMathSat'
--- http://optimathsat.disi.unitn.it/
--- probably fails with other solvers
-instance OptSMTSolver SMTLib2 where
-  minimize e = send $ app "minimize" [expressionBS e]
-  maximize e = send $ app "maximize" [expressionBS e]
 
 instance Show (NLiteral SMTLib2) where
   show (NLit (Symbol i)) = 'n': show i
