@@ -172,22 +172,29 @@ factoriseMono (fmap toMonos -> ps)
 
 -- pretty printers
 
-ppPower :: PP.Pretty a => (a, Int) -> PP.Doc
-ppPower (v,i) = PP.pretty v PP.<> if i == 1 then PP.empty else PP.char '^' PP.<> PP.int i
+ppPower :: (v -> PP.Doc) -> (v, Int) -> PP.Doc
+ppPower ppVar (v,i) = ppVar v PP.<> if i == 1 then PP.empty else PP.char '^' PP.<> PP.int i
 
-instance PP.Pretty v => PP.Pretty (Monomial v) where
-  pretty mono = pretty' (toPowers mono) where
-    pretty' [] = PP.char '1'
-    pretty' ps = PP.hcat (PP.punctuate (PP.char '·') [ppPower p | p <- ps])
+ppMono :: (v -> PP.Doc) -> Monomial v -> PP.Doc
+ppMono _ (toPowers -> []) = PP.char '1'
+ppMono ppVar (toPowers -> ps) = PP.hcat (PP.punctuate (PP.char '·') [ppPower ppVar p | p <- ps])
+
+
+ppPoly :: (Num c, Eq c) => (v -> PP.Doc) -> (c -> PP.Doc) -> Polynomial v c -> PP.Doc
+ppPoly _ _ (toMonos -> []) = PP.char '0'
+ppPoly ppVar ppCoeff (toMonos -> ps) = PP.hcat (PP.punctuate (PP.string " + ") (ppMono' `map` ps))
+  where
+    ppMono' (c,mono) | c == one        = ppMono ppVar mono
+    ppMono' (c,mono) | c == negate one = PP.pretty "-" PP.<> ppMono ppVar mono
+    ppMono' (c,toPowers -> [])         = ppCoeff c
+    ppMono' (c,mono)                   = ppCoeff c PP.<> PP.char '·' PP.<> PP.parens (ppMono ppVar mono)
+
+
+instance (PP.Pretty v) => PP.Pretty (Monomial v) where
+  pretty = ppMono PP.pretty
 
 instance (Num c, Eq c, PP.Pretty c, PP.Pretty v) => PP.Pretty (Polynomial v c) where
-  pretty poly = pretty' (toMonos poly) where
-    pretty' [] = PP.char '0'
-    pretty' ps = PP.hcat (PP.punctuate (PP.string " + ") (ppMono `map` ps))
-    ppMono (c,mono) | c == one        = PP.pretty mono
-    ppMono (c,mono) | c == negate one = PP.pretty "-" PP.<> PP.pretty mono
-    ppMono (c,toPowers -> [])         = PP.parens (PP.pretty c)
-    ppMono (c,mono)                   = PP.parens (PP.pretty c) PP.<> PP.char '·' PP.<> PP.parens (PP.pretty mono)
+  pretty = ppPoly PP.pretty PP.pretty
 
 
 -- Difference Polynomial
