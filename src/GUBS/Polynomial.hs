@@ -170,8 +170,8 @@ instance (Num c, Eq c, PP.Pretty c, PP.Pretty v) => PP.Pretty (Polynomial v c) w
     pretty' ps = PP.hcat (PP.punctuate (PP.string " + ") (ppMono `map` ps))
     ppMono (c,mono) | c == one        = PP.pretty mono
     ppMono (c,mono) | c == negate one = PP.pretty "-" PP.<> PP.pretty mono
-    ppMono (c,toPowers -> [])         = PP.pretty c
-    ppMono (c,mono)                   = PP.pretty c PP.<> PP.char '·' PP.<> PP.parens (PP.pretty mono)
+    ppMono (c,toPowers -> [])         = PP.parens (PP.pretty c)
+    ppMono (c,mono)                   = PP.parens (PP.pretty c) PP.<> PP.char '·' PP.<> PP.parens (PP.pretty mono)
 
 
 -- Difference Polynomial
