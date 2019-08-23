@@ -153,6 +153,22 @@ factorise (fmap (toMonos . norm) -> ps)
     leq1 [_] = True
     leq1 _   = False
 
+factoriseMono :: (Integral c, Ord v) => [Polynomial v c] -> Maybe (Monomial v, [Polynomial v c])
+factoriseMono (fmap (toMonos . norm) -> ps)
+  | leq1 monos       = Nothing
+  | MS.size msf == 0 = Nothing
+  | otherwise        = Just (Mono msf , map factor ps)
+  where
+    monos  = concat ps
+
+    msf = foldl1' MS.intersection [ m | (_,Mono m) <- monos ]
+
+    factor p = fromMonos [ (c, Mono (m MS.\\ msf))  | (c, Mono m) <- p]
+
+    leq1 []  = True
+    leq1 [_] = True
+    leq1 _   = False
+
 
 -- pretty printers
 
