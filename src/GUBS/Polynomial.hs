@@ -153,7 +153,7 @@ factorise (fmap (toMonos . norm) -> ps)
     leq1 [_] = True
     leq1 _   = False
 
-factoriseMono :: (Integral c, Ord v) => [Polynomial v c] -> Maybe (Monomial v, [Polynomial v c])
+factoriseMono :: (Ord v) => [Polynomial v c] -> Maybe (Monomial v, [Polynomial v c])
 factoriseMono (fmap (toMonos . norm) -> ps)
   | leq1 monos       = Nothing
   | MS.size msf == 0 = Nothing
