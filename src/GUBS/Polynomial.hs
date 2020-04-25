@@ -118,7 +118,7 @@ fromPolynomial var coeff = runIdentity . fromPolynomialM (pure . var) (pure . co
 evalWithM :: (Num c, Applicative m) => (v -> m c) -> Polynomial v c -> m c
 evalWithM getValue = evalPoly where
   evalPoly p = sumA <$> sequenceA [ (c *) <$> evalMono m | (c,m) <- toMonos p]
-  evalMono m = prod <$> sequenceA [ (^ p) <$> getValue v | (v,p) <- (toPowers m) ]
+  evalMono m = prod <$> sequenceA [ (^ p) <$> getValue v | (v,p) <- toPowers m ]
 
 evalWith :: Num c => (v -> c) -> Polynomial v c -> c
 evalWith getValue = runIdentity . evalWithM (return . getValue)
@@ -138,9 +138,9 @@ zipCoefficients p1 p2 = coefficients $
 
 factorise :: (Integral c, Ord v) => [Polynomial v c] -> Maybe ((c,Monomial v), [Polynomial v c])
 factorise (fmap (toMonos . norm) -> ps)
-  | leq1 monos       = Nothing
-  | MS.size msf == 0 = Nothing
-  | otherwise        = Just ( (cf,Mono msf) , map factor ps)
+  | leq1 monos                  = Nothing
+  | MS.size msf == 0 && cf == 1 = Nothing
+  | otherwise                   = Just ( (cf,Mono msf) , map factor ps)
   where
     monos  = concat ps
 
