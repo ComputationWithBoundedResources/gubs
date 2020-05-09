@@ -181,14 +181,18 @@ ppMono ppVar (toPowers -> ps) = PP.hcat (PP.punctuate (PP.char '·') [ppPower pp
 
 
 ppPoly :: (Num c, Eq c) => (v -> PP.Doc) -> (c -> PP.Doc) -> Polynomial v c -> PP.Doc
-ppPoly _ _ (toMonos -> []) = PP.char '0'
-ppPoly ppVar ppCoeff (toMonos -> ps) = PP.hcat (PP.punctuate (PP.string " + ") (ppMono' `map` ps))
+ppPoly ppVar ppCoeff = PP.nest 1 . ppPoly' . toMonos
   where
+    -- walk []     = PP.char '0'
+    -- walk [m]    = ppMono' m
+    -- walk (m:ms) = PP.group (ppMono' m) PP.</> PP.string "+" PP.<+> walk ms
+    ppPoly' []     = PP.char '0'
+    ppPoly' (p:ps) = PP.fillSep (ppMono' p : [PP.text "+" PP.<+> ppMono' p' | p' <- ps])
+
     ppMono' (c,mono) | c == one        = ppMono ppVar mono
     ppMono' (c,mono) | c == negate one = PP.pretty "-" PP.<> ppMono ppVar mono
     ppMono' (c,toPowers -> [])         = ppCoeff c
     ppMono' (c,mono)                   = ppCoeff c PP.<> PP.char '·' PP.<> PP.parens (ppMono ppVar mono)
-
 
 instance (PP.Pretty v) => PP.Pretty (Monomial v) where
   pretty = ppMono PP.pretty
